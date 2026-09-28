@@ -65,7 +65,7 @@ auditoría.
 | Frontend móvil | Flutter 3.x y Dart |
 | Estado | `flutter_bloc` |
 | HTTP | Dio o Retrofit |
-| Backend | Python 3.11+, FastAPI y Pydantic v2 |
+| Backend | Python 3.11+, FastAPI, Pydantic v2 y `tzdata` para `America/Bogota` |
 | Persistencia | PostgreSQL 15+, SQLAlchemy 2.0 asíncrono y Alembic |
 | Contraseñas | Argon2id o bcrypt con costo mínimo 12 |
 | Autenticación | JWT, access token de 15 minutos y refresh token revocable |
@@ -220,6 +220,8 @@ CREATE TABLE visita_historial (
     estado_nuevo estado_visita,
     fecha_anterior TIMESTAMPTZ,
     fecha_nueva TIMESTAMPTZ,
+    datos_anteriores JSONB,
+    datos_nuevos JSONB,
     motivo TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -281,6 +283,12 @@ migraciones Alembic serán la fuente de verdad ejecutable.
 `asignaciones_hermano` conserva cada líder responsable, quién hizo la asignación
 y sus fechas. Reasignar o desactivar un hermano cierra la asignación vigente; no
 se sobrescribe su historial.
+
+Las visitas nuevas siempre inician `PROGRAMADA`. El índice parcial evita
+duplicar hermano y fecha mientras la visita siga programada. Cada cambio añade
+un snapshot JSONB al historial; PostgreSQL impide borrar visitas físicamente o
+modificar/eliminar eventos de auditoría. `tzdata` suministra `America/Bogota` en
+plataformas, como Windows, que no incluyen la base IANA del sistema.
 
 ## Historias de usuario y aceptación
 
@@ -473,6 +481,11 @@ Característica: Gestión del ciclo de vida de una visita
         Cuando se intenta crear una visita PROGRAMADA en el pasado
         Entonces la operación es rechazada
 
+    Escenario: Impedir reprogramación a una fecha pasada
+        Dado una visita PROGRAMADA
+        Cuando se intenta reprogramar a una fecha anterior a la hora actual de America/Bogota
+        Entonces la operación es rechazada
+
     Escenario: Impedir visita completada en el futuro
         Dado una visita PROGRAMADA con fecha futura
         Cuando se intenta marcarla como COMPLETADA antes de su fecha
@@ -660,13 +673,19 @@ Prefijo: `/api/v1`.
 | `POST /visitas` | ADMIN, PASTOR o LIDER autorizado |
 | `GET /visitas/{id}` | Según alcance |
 | `PATCH /visitas/{id}` | Según rol y estado |
-| `DELETE /visitas/{id}` | ADMIN, PASTOR o LIDER asignado; cancela con motivo |
+| `DELETE /visitas/{id}` | ADMIN, PASTOR o LIDER asignado; cancela con motivo, sin borrar |
 | `GET /visitas/{id}/history` | ADMIN o PASTOR en alcance |
 | `GET /audit` | ADMIN global o PASTOR dentro de su iglesia |
 | `GET /reports/ranking` | ADMIN global o PASTOR de su iglesia |
 
 Todos los endpoints protegidos deben verificar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
+
+`POST /visitas` recibe `brother_id`, `visit_type`, `scheduled_at` con zona,
+`duration_minutes`, `location` y `observations`; líder y creador se derivan de
+la cuenta y asignación vigentes. `PATCH /visitas/{id}` actualiza esos datos o
+marca `status: COMPLETADA`; para cancelar se usa `DELETE` con `{ "reason":
+"..." }`. Reprogramar conserva `PROGRAMADA` y cambia `scheduled_at`.
 
 Para `POST /hermanos`, ADMIN y PASTOR deben enviar `leader_id`; LIDER puede
 omitirlo y el backend asigna al líder autenticado. `PATCH /hermanos/{id}` solo
@@ -761,7 +780,10 @@ principal activo sin reemplazo. Las migraciones validan la relación territorial
 y el estado de las iglesias. HU-03 implementa CRUD de hermanos según alcance,
 reasignación de líder por ADMIN/PASTOR y conservación del historial; las
 migraciones impiden asignar líderes de otro rol o iglesia. El esquema está
-aplicado en PostgreSQL 17 local; GitHub Actions usa PostgreSQL 17 efímero para
-migraciones e integración. Siguen pendientes HU-04 a HU-09, recuperación de
-cuenta, CRUD administrativo de distritos e iglesias y el frontend. Se mantiene
+aplicado en PostgreSQL 17 local. HU-04 implementa el ciclo de visitas, alcance
+por rol, rechazo de duplicados, validación horaria en `America/Bogota` e historial
+append-only; PostgreSQL protege asignaciones, unicidad y borrado físico. GitHub
+Actions usa PostgreSQL 17 efímero para migraciones e integración. Siguen
+pendientes HU-05 (auditoría global), HU-06 a HU-09, recuperación de cuenta, CRUD
+administrativo de distritos e iglesias y el frontend. Se mantiene
 `INSTRUCTIOS.md` como contrato funcional y se implementa en iteraciones TDD.

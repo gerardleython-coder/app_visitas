@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.authentication import UserRole
@@ -199,4 +201,108 @@ class BrotherAssignmentModel(Base):
     )
     ended_at: Mapped[datetime | None] = mapped_column(
         "fecha_fin", DateTime(timezone=True)
+    )
+
+
+class VisitModel(Base):
+    __tablename__ = "visitas"
+    __table_args__ = (
+        CheckConstraint(
+            "tipo IN ('EVANGELISMO', 'ENSENANZA', 'CUIDADO_PASTORAL')",
+            name="ck_visita_tipo_valido",
+        ),
+        CheckConstraint(
+            "estado IN ('PROGRAMADA', 'COMPLETADA', 'CANCELADA')",
+            name="ck_visita_estado_valido",
+        ),
+        CheckConstraint("duracion_minutos > 0", name="ck_visita_duracion_positiva"),
+        CheckConstraint(
+            "(estado = 'CANCELADA' AND motivo_cancelacion IS NOT NULL) "
+            "OR (estado <> 'CANCELADA' AND motivo_cancelacion IS NULL)",
+            name="ck_visita_cancelada_requiere_motivo",
+        ),
+        CheckConstraint(
+            "(estado = 'COMPLETADA' AND fecha_completada IS NOT NULL) "
+            "OR (estado <> 'COMPLETADA' AND fecha_completada IS NULL)",
+            name="ck_visita_completada_requiere_fecha",
+        ),
+        Index(
+            "uq_visita_programada_hermano_fecha",
+            "hermano_id",
+            "fecha_programada",
+            unique=True,
+            postgresql_where=text("estado = 'PROGRAMADA'"),
+            sqlite_where=text("estado = 'PROGRAMADA'"),
+        ),
+        Index("ix_visita_lider_fecha", "lider_id", "fecha_programada"),
+        Index("ix_visita_hermano_fecha", "hermano_id", "fecha_programada"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    leader_id: Mapped[UUID] = mapped_column(
+        "lider_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    brother_id: Mapped[UUID] = mapped_column(
+        "hermano_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    visit_type: Mapped[str] = mapped_column("tipo", String(30), nullable=False)
+    scheduled_at: Mapped[datetime] = mapped_column(
+        "fecha_programada", DateTime(timezone=True), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        "fecha_completada", DateTime(timezone=True)
+    )
+    duration_minutes: Mapped[int] = mapped_column("duracion_minutos", nullable=False)
+    location: Mapped[str] = mapped_column("ubicacion", Text, nullable=False)
+    observations: Mapped[str] = mapped_column("observaciones", Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        "estado", String(20), nullable=False, default="PROGRAMADA", server_default=text("'PROGRAMADA'")
+    )
+    cancellation_reason: Mapped[str | None] = mapped_column("motivo_cancelacion", Text)
+    created_by_id: Mapped[UUID] = mapped_column(
+        "creado_por", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        "updated_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class VisitHistoryModel(Base):
+    __tablename__ = "visita_historial"
+    __table_args__ = (
+        Index("ix_visita_historial_visita_fecha", "visita_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    visit_id: Mapped[UUID] = mapped_column(
+        "visita_id", Uuid(as_uuid=True), ForeignKey("visitas.id", ondelete="RESTRICT"), nullable=False
+    )
+    actor_id: Mapped[UUID] = mapped_column(
+        "usuario_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    action: Mapped[str] = mapped_column("accion", String(30), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column("estado_anterior", String(20))
+    new_status: Mapped[str | None] = mapped_column("estado_nuevo", String(20))
+    previous_scheduled_at: Mapped[datetime | None] = mapped_column(
+        "fecha_anterior", DateTime(timezone=True)
+    )
+    new_scheduled_at: Mapped[datetime | None] = mapped_column(
+        "fecha_nueva", DateTime(timezone=True)
+    )
+    previous_values: Mapped[dict[str, object] | None] = mapped_column(
+        "datos_anteriores", JSON().with_variant(JSONB(), "postgresql")
+    )
+    new_values: Mapped[dict[str, object] | None] = mapped_column(
+        "datos_nuevos", JSON().with_variant(JSONB(), "postgresql")
+    )
+    reason: Mapped[str | None] = mapped_column("motivo", Text)
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )

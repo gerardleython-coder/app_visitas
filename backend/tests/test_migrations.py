@@ -27,6 +27,8 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
         "usuarios",
         "sesiones_refresh",
         "asignaciones_hermano",
+        "visitas",
+        "visita_historial",
     } <= tables
 
 
@@ -100,9 +102,29 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "77c81d294d3a:base", sql=True)
+    command.downgrade(downgrade_config, "b5f4a8c2d1e6:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
+    assert "DROP TRIGGER IF EXISTS trg_proteger_historial_visita ON visita_historial" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS proteger_historial_visita()" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP TRIGGER IF EXISTS trg_validar_alcance_visita ON visitas" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS validar_alcance_visita()" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP TABLE visita_historial" in downgrade_output.getvalue()
+    assert "DROP TABLE visitas" in downgrade_output.getvalue()
+    assert "ALTER TABLE visita_historial ALTER COLUMN datos_anteriores TYPE JSON" in (
+        downgrade_output.getvalue()
+    )
+    assert "ALTER TABLE visita_historial ALTER COLUMN datos_nuevos TYPE JSON" in (
+        downgrade_output.getvalue()
+    )
     assert "DROP TABLE asignaciones_hermano" in downgrade_output.getvalue()
     assert "DROP TRIGGER IF EXISTS trg_validar_lider_hermano ON usuarios" in (
         downgrade_output.getvalue()
@@ -155,3 +177,19 @@ def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() 
     assert "CREATE FUNCTION proteger_lider_con_hermanos()" in generated_sql
     assert "CREATE TRIGGER trg_proteger_lider_con_hermanos" in generated_sql
     assert "CREATE FUNCTION validar_historial_asignacion_hermano()" in generated_sql
+    assert "CREATE FUNCTION validar_alcance_visita()" in generated_sql
+    assert "CREATE TRIGGER trg_validar_alcance_visita" in generated_sql
+    assert "CREATE FUNCTION impedir_eliminar_visita()" in generated_sql
+    assert "CREATE TRIGGER trg_impedir_eliminar_visita" in generated_sql
+    assert "CREATE FUNCTION proteger_historial_visita()" in generated_sql
+    assert "CREATE TRIGGER trg_proteger_historial_visita" in generated_sql
+    assert "CREATE TRIGGER trg_proteger_historial_visita" in generated_sql
+    assert "CREATE UNIQUE INDEX uq_visita_programada_hermano_fecha" in generated_sql
+    assert "CREATE TABLE visitas" in generated_sql
+    assert "CREATE TABLE visita_historial" in generated_sql
+    assert "ALTER TABLE visita_historial ALTER COLUMN datos_anteriores TYPE JSONB" in (
+        generated_sql
+    )
+    assert "ALTER TABLE visita_historial ALTER COLUMN datos_nuevos TYPE JSONB" in (
+        generated_sql
+    )

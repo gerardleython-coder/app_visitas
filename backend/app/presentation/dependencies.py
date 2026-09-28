@@ -8,6 +8,7 @@ from app.application.authenticate_user import AuthenticateUser
 from app.application.manage_brothers import ManageBrothers
 from app.application.create_operator import CreateOperator
 from app.application.manage_operators import OperatorManagement
+from app.application.manage_visits import ManageVisits
 from app.application.logout_user import LogoutUser
 from app.application.rotate_refresh_token import RotateRefreshToken
 from app.domain.authentication import UserAccount, UserRole
@@ -24,6 +25,7 @@ from app.infrastructure.refresh_session_repository import SQLAlchemyRefreshSessi
 from app.infrastructure.security_settings import SecuritySettings
 from app.infrastructure.session_issuer import SQLAlchemySessionIssuer
 from app.infrastructure.user_repository import SQLAlchemyUserRepository
+from app.infrastructure.visit_repository import SQLAlchemyVisitRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -161,4 +163,14 @@ async def get_brother_management(
         brothers=SQLAlchemyBrotherRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
         churches=SQLAlchemyChurchRepository(session),
+    )
+
+
+async def get_visit_management(
+    session: AsyncSession = Depends(get_db_session),
+) -> ManageVisits:
+    return ManageVisits(
+        visits=SQLAlchemyVisitRepository(session),
+        brothers=SQLAlchemyBrotherRepository(session),
+        operators=SQLAlchemyOperatorRepository(session),
     )
