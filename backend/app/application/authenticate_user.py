@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import UnauthorizedException
@@ -10,6 +11,7 @@ class SessionTokens:
     access_token: str
     refresh_token: str
     access_expires_in: int
+    refresh_session_id: UUID | None = None
 
 
 class UserRepository(Protocol):

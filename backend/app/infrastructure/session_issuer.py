@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
+from uuid import UUID, uuid4
 
 import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +27,7 @@ class SQLAlchemySessionIssuer:
         account: UserAccount,
         *,
         access_ttl_seconds: int,
+        family_id: UUID | None = None,
     ) -> SessionTokens:
         issued_at = datetime.now(UTC)
         access_token = jwt.encode(
@@ -41,8 +43,11 @@ class SQLAlchemySessionIssuer:
         )
         refresh_token = token_urlsafe(64)
         token_hash = sha256(refresh_token.encode("utf-8")).hexdigest()
+        session_id = uuid4()
         self._session.add(
             RefreshSessionModel(
+            id=session_id,
+            family_id=family_id or session_id,
                 user_id=account.id,
                 token_hash=token_hash,
                 expires_at=issued_at + self._refresh_ttl,
@@ -54,4 +59,5 @@ class SQLAlchemySessionIssuer:
             access_token=access_token,
             refresh_token=refresh_token,
             access_expires_in=access_ttl_seconds,
+            refresh_session_id=session_id,
         )

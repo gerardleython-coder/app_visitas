@@ -702,14 +702,13 @@ app-pastoral/
 
 ## Estado del proyecto
 
-El backend tiene el endpoint de salud, el caso de uso inicial de autenticación
-y la ruta `POST /api/v1/auth/login`, con Argon2id, access JWT de 15 minutos y
-persistencia hasheada del refresh inicial. El caso de uso HU-02 crea pastores y
-líderes con asignación territorial. Las migraciones validan en PostgreSQL que
-la iglesia pertenezca al distrito, esté activa y no se desactive mientras
-conserve operadores activos. El esquema está aplicado y verificado en
-PostgreSQL 17 local; GitHub Actions también usa PostgreSQL 17 efímero para las
-migraciones y la prueba de integración del login. Siguen pendientes la rotación
-de refresh, logout y recuperación de cuenta, los endpoints administrativos,
-las demás historias de usuario y el frontend. Se implementarán en iteraciones
-TDD, manteniendo `INSTRUCTIOS.md` como contrato funcional.
+El backend tiene las rutas `POST /api/v1/auth/login` y
+`POST /api/v1/auth/refresh`, con Argon2id, access JWT de 15 minutos, refresh
+hasheado y rotación de una sola vez; la reutilización revoca la familia. El caso
+de uso HU-02 crea pastores y líderes con asignación territorial. Las migraciones
+validan en PostgreSQL que la iglesia pertenezca al distrito, esté activa y no
+se desactive mientras conserve operadores activos. El esquema está aplicado y
+verificado en PostgreSQL 17 local; GitHub Actions usa PostgreSQL 17 efímero para
+migraciones e integración. Siguen pendientes logout, recuperación de cuenta,
+endpoints administrativos, las demás historias y el frontend. Se implementarán
+en iteraciones TDD, manteniendo `INSTRUCTIOS.md` como contrato funcional.

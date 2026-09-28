@@ -1,9 +1,10 @@
 from io import StringIO
 from pathlib import Path
+from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 
 def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -> None:
@@ -21,6 +22,49 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
         engine.dispose()
 
     assert {"distritos", "iglesias", "usuarios", "sesiones_refresh"} <= tables
+
+
+def test_refresh_family_migration_backfills_existing_sessions(tmp_path: Path) -> None:
+    database_path = tmp_path / "refresh-family.db"
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite+aiosqlite:///{database_path}")
+    command.upgrade(config, "f6117ca1487e")
+
+    session_id = uuid4()
+    engine = create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO sesiones_refresh "
+                    "(id, usuario_id, token_hash, expira_at, created_at) "
+                    "VALUES (:id, :user_id, :token_hash, :expires_at, :created_at)"
+                ),
+                {
+                    "id": session_id.hex,
+                    "user_id": uuid4().hex,
+                    "token_hash": "legacy-refresh-hash",
+                    "expires_at": "2030-01-01T00:00:00+00:00",
+                    "created_at": "2026-01-01T00:00:00+00:00",
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.connect() as connection:
+            family_id = connection.scalar(
+                text("SELECT family_id FROM sesiones_refresh WHERE id = :id"),
+                {"id": session_id.hex},
+            )
+    finally:
+        engine.dispose()
+
+    assert family_id is not None
+    assert session_id.hex == family_id.replace("-", "")
 
 
 def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
@@ -50,9 +94,10 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "f6117ca1487e:base", sql=True)
+    command.downgrade(downgrade_config, "cd3031a1e81a:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
+    assert "DROP INDEX ix_sesiones_refresh_family_id" in downgrade_output.getvalue()
     assert "DROP TRIGGER IF EXISTS trg_iglesia_con_operadores_activos ON iglesias" in (
         downgrade_output.getvalue()
     )

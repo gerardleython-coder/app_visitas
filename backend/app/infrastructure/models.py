@@ -139,6 +139,9 @@ class RefreshSessionModel(Base):
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
     )
+    family_id: Mapped[UUID] = mapped_column(
+        "family_id", Uuid(as_uuid=True), nullable=False, index=True
+    )
     user_id: Mapped[UUID] = mapped_column(
         "usuario_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
     )
