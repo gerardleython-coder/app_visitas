@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import NoReturn
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.exc import IntegrityError
 
@@ -18,7 +18,12 @@ from app.domain.errors import (
     NotFoundException,
 )
 from app.domain.visit import Visit, VisitHistoryEntry, VisitStatus, VisitType
-from app.presentation.dependencies import get_visit_management, require_roles
+from app.infrastructure.visit_notification_dispatcher import VisitNotificationDispatcher
+from app.presentation.dependencies import (
+    get_visit_management,
+    get_visit_notification_dispatcher,
+    require_roles,
+)
 
 
 class VisitCreateRequest(BaseModel):
@@ -161,10 +166,12 @@ def _history_response(entry: VisitHistoryEntry) -> VisitHistoryResponse:
 @router.post("/visitas", response_model=VisitResponse, status_code=201)
 async def create_visit(
     request: VisitCreateRequest,
+    background_tasks: BackgroundTasks,
     actor: UserAccount = Depends(
         require_roles(UserRole.ADMIN, UserRole.PASTOR, UserRole.LIDER)
     ),
     management: ManageVisits = Depends(get_visit_management),
+    dispatcher: VisitNotificationDispatcher = Depends(get_visit_notification_dispatcher),
 ) -> VisitResponse:
     try:
         visit = await management.create(
@@ -182,6 +189,7 @@ async def create_visit(
         _raise_domain_http_error(error)
     except IntegrityError as error:
         _raise_integrity_conflict(error)
+    background_tasks.add_task(dispatcher.process_pending)
     return _response(visit)
 
 

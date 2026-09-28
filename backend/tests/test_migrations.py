@@ -30,6 +30,7 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
         "visitas",
         "visita_historial",
         "auditoria",
+        "notificaciones_outbox",
     } <= tables
 
 
@@ -103,7 +104,7 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "d2f4e63b0a91:base", sql=True)
+    command.downgrade(downgrade_config, "f0f8721bbd46:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
     assert "DROP TRIGGER IF EXISTS trg_proteger_historial_visita ON visita_historial" in (
@@ -127,6 +128,10 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
     assert "DROP INDEX ix_auditoria_recurso" in downgrade_output.getvalue()
     assert "DROP INDEX ix_auditoria_iglesia_fecha" in downgrade_output.getvalue()
     assert "DROP TABLE auditoria" in downgrade_output.getvalue()
+    assert "DROP INDEX ix_notificacion_outbox_estado_reintento" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP TABLE notificaciones_outbox" in downgrade_output.getvalue()
     assert "ALTER TABLE visita_historial ALTER COLUMN datos_anteriores TYPE JSON" in (
         downgrade_output.getvalue()
     )
@@ -206,3 +211,6 @@ def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() 
     assert "CREATE FUNCTION proteger_auditoria()" in generated_sql
     assert "ix_auditoria_iglesia_fecha" in generated_sql
     assert "ix_auditoria_recurso" in generated_sql
+    assert "CREATE TABLE notificaciones_outbox" in generated_sql
+    assert "uq_notificacion_outbox_visita_destinatario_tipo" in generated_sql
+    assert "ix_notificacion_outbox_estado_reintento" in generated_sql

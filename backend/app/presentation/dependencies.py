@@ -18,6 +18,8 @@ from app.infrastructure.access_token_verifier import AccessTokenVerifier
 from app.infrastructure.audit_repository import SQLAlchemyAuditRepository
 from app.infrastructure.brother_repository import SQLAlchemyBrotherRepository
 from app.infrastructure.database import create_database_engine, create_session_factory
+from app.infrastructure.database import DatabaseSettings
+from app.infrastructure.email_service import SMTPEmailSender, SMTPSettings
 from app.infrastructure.organization_repository import (
     SQLAlchemyChurchRepository,
     SQLAlchemyOperatorRepository,
@@ -28,6 +30,8 @@ from app.infrastructure.security_settings import SecuritySettings
 from app.infrastructure.session_issuer import SQLAlchemySessionIssuer
 from app.infrastructure.user_repository import SQLAlchemyUserRepository
 from app.infrastructure.visit_repository import SQLAlchemyVisitRepository
+from app.infrastructure.visit_notification_dispatcher import VisitNotificationDispatcher
+from app.infrastructure.visit_notification_queue import SQLAlchemyVisitNotificationQueue
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -178,6 +182,14 @@ async def get_visit_management(
         visits=SQLAlchemyVisitRepository(session),
         brothers=SQLAlchemyBrotherRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
+        notifications=SQLAlchemyVisitNotificationQueue(session),
+    )
+
+
+async def get_visit_notification_dispatcher() -> VisitNotificationDispatcher:
+    return VisitNotificationDispatcher(
+        database_url=DatabaseSettings().database_url,
+        sender=SMTPEmailSender(SMTPSettings()),
     )
 
 

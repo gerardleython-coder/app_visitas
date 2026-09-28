@@ -14,15 +14,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.domain.authentication import UserRole
-from app.infrastructure.database import create_database_engine
+from app.infrastructure.database import DatabaseSettings, create_database_engine
 from app.infrastructure.models import (
     ChurchModel,
     DistrictModel,
+    NotificationOutboxModel,
     UserModel,
     VisitHistoryModel,
     VisitModel,
 )
 from app.main import app
+from app.infrastructure.visit_notification_dispatcher import VisitNotificationDispatcher
+from app.presentation.dependencies import get_visit_notification_dispatcher
 
 
 BOGOTA = ZoneInfo("America/Bogota")
@@ -127,6 +130,7 @@ def visit_scenario(monkeypatch: pytest.MonkeyPatch) -> VisitScenario:
                                 email=f"{scenario.prefix}-pastor@example.invalid",
                                 password_hash="test-only-hash",
                                 role=UserRole.PASTOR,
+                                is_primary_pastor=True,
                                 active=True,
                             ),
                             UserModel(
@@ -224,6 +228,11 @@ def visit_scenario(monkeypatch: pytest.MonkeyPatch) -> VisitScenario:
                     visit_ids = select(VisitModel.id).where(
                         VisitModel.brother_id.in_(
                             [scenario.brother_id, scenario.other_brother_id]
+                        )
+                    )
+                    await connection.execute(
+                        delete(NotificationOutboxModel).where(
+                            NotificationOutboxModel.visit_id.in_(visit_ids)
                         )
                     )
                     await connection.execute(
@@ -616,3 +625,63 @@ def test_postgres_prevents_physical_visit_delete_and_history_mutation(
         asyncio.run(attempt_visit_delete())
     with pytest.raises(IntegrityError):
         asyncio.run(attempt_history_update())
+
+
+def test_notification_failure_keeps_visit_and_outbox_for_retry(
+    visit_scenario: VisitScenario,
+) -> None:
+    scenario = visit_scenario
+
+    class FailingEmailSender:
+        async def send_visit_created(self, notification: object) -> None:
+            raise ConnectionError("SMTP transport unavailable")
+
+    dispatcher = VisitNotificationDispatcher(
+        DatabaseSettings().database_url,
+        FailingEmailSender(),
+    )
+    app.dependency_overrides[get_visit_notification_dispatcher] = lambda: dispatcher
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/visitas",
+                headers=scenario.headers(scenario.admin_id, UserRole.ADMIN),
+                json=visit_request(
+                    scenario.brother_id,
+                    datetime.now(BOGOTA) + timedelta(days=1),
+                ),
+            )
+        assert response.status_code == 201
+        visit_id = UUID(response.json()["id"])
+
+        async def inspect_result() -> tuple[VisitModel | None, list[NotificationOutboxModel]]:
+            engine = create_database_engine()
+            try:
+                session_factory = async_sessionmaker(engine, expire_on_commit=False)
+                async with session_factory() as session:
+                    visit = await session.get(VisitModel, visit_id)
+                    notifications = list(
+                        (
+                            await session.scalars(
+                                select(NotificationOutboxModel).where(
+                                    NotificationOutboxModel.visit_id == visit_id
+                                )
+                            )
+                        ).all()
+                    )
+                    return visit, notifications
+            finally:
+                await engine.dispose()
+
+        visit, notifications = asyncio.run(inspect_result())
+        assert visit is not None
+        assert len(notifications) == 2
+        assert {item.recipient_email for item in notifications} == {
+            f"{scenario.prefix}-leader-a@example.invalid",
+            f"{scenario.prefix}-pastor@example.invalid",
+        }
+        assert all(item.status == "PENDIENTE" for item in notifications)
+        assert all(item.attempt_count == 1 for item in notifications)
+        assert all(item.last_error == "ConnectionError" for item in notifications)
+    finally:
+        app.dependency_overrides.pop(get_visit_notification_dispatcher, None)

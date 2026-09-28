@@ -125,6 +125,14 @@ class FakeVisitRepository:
         return self.history_entries.get(visit_id, [])
 
 
+@dataclass
+class FakeVisitNotificationQueue:
+    queued_visits: list[Visit] = field(default_factory=list)
+
+    async def enqueue_visit_created(self, visit: Visit) -> None:
+        self.queued_visits.append(visit)
+
+
 def make_account(role: UserRole, account_id: UUID | None = None) -> UserAccount:
     return UserAccount(
         id=account_id or uuid4(),
@@ -218,6 +226,7 @@ def make_manager(
         operators=FakeOperatorRepository(
             {operator.id: operator for operator in operator_profiles}
         ),
+        notifications=FakeVisitNotificationQueue(),
     )
     return manager, visit_repository
 
@@ -249,6 +258,26 @@ async def test_admin_creates_visit_and_normalizes_required_text() -> None:
     assert visit.created_by_id == admin.id
     assert visit.location == "Home"
     assert visit.observations == "Follow up"
+
+
+async def test_created_visit_is_enqueued_for_notification_after_creation() -> None:
+    district_id = uuid4()
+    church_id = uuid4()
+    leader = make_operator(UserRole.LIDER, church_id, district_id)
+    brother = make_brother(church_id, district_id, leader.id)
+    admin = make_account(UserRole.ADMIN)
+    visits = FakeVisitRepository({brother.id: brother})
+    notifications = FakeVisitNotificationQueue()
+    manager = ManageVisits(
+        visits=visits,
+        brothers=FakeBrotherRepository({brother.id: brother}),
+        operators=FakeOperatorRepository({leader.id: leader}),
+        notifications=notifications,
+    )
+
+    created = await manager.create(create_command(admin, brother.id))
+
+    assert notifications.queued_visits == [created]
 
 
 async def test_pastor_can_create_only_for_brother_in_their_church() -> None:

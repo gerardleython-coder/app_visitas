@@ -5,6 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.application.visit_access import strategy_for
+from app.application.visit_notifications import VisitNotificationQueue
 from app.application.visit_commands import (
     CancelVisitCommand,
     CreateVisitCommand,
@@ -84,10 +85,12 @@ class ManageVisits:
         visits: VisitRepository,
         brothers: BrotherRepository,
         operators: OperatorRepository,
+        notifications: VisitNotificationQueue,
     ) -> None:
         self._visits = visits
         self._brothers = brothers
         self._operators = operators
+        self._notifications = notifications
 
     async def create(self, command: CreateVisitCommand) -> Visit:
         actor = command.actor
@@ -114,7 +117,7 @@ class ManageVisits:
         ):
             raise DomainException("El hermano no tiene un líder activo en su iglesia")
 
-        return await self._visits.create_visit(
+        visit = await self._visits.create_visit(
             brother_id=brother.id,
             leader_id=leader.id,
             created_by_id=actor.id,
@@ -125,6 +128,8 @@ class ManageVisits:
             observations=command.observations.strip(),
             created_at=datetime.now(UTC),
         )
+        await self._notifications.enqueue_visit_created(visit)
+        return visit
 
     async def list_visits(self, actor: UserAccount) -> list[Visit]:
         strategy = strategy_for(actor.role)

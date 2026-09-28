@@ -278,6 +278,26 @@ CREATE INDEX ix_auditoria_iglesia_fecha
 
 CREATE INDEX ix_auditoria_recurso
     ON auditoria (recurso, recurso_id, created_at);
+
+CREATE TABLE notificaciones_outbox (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    visita_id UUID NOT NULL REFERENCES visitas(id) ON DELETE RESTRICT,
+    destinatario_email VARCHAR(150) NOT NULL,
+    tipo VARCHAR(40) NOT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE'
+        CHECK (estado IN ('PENDIENTE', 'PROCESANDO', 'ENVIADA')),
+    intentos INTEGER NOT NULL DEFAULT 0,
+    ultimo_error VARCHAR(100),
+    reintentar_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    bloqueado_hasta TIMESTAMPTZ,
+    ultimo_intento_at TIMESTAMPTZ,
+    enviado_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (visita_id, destinatario_email, tipo)
+);
+
+CREATE INDEX ix_notificacion_outbox_estado_reintento
+    ON notificaciones_outbox (estado, reintentar_at);
 ```
 
 Las reglas de rol, pertenencia a la misma iglesia, distrito coincidente,
@@ -564,9 +584,17 @@ Característica: Notificación de visita
         Dado una visita creada correctamente
         Y existe un líder responsable y un pastor principal activo
         Cuando finaliza la transacción de persistencia
-        Entonces se programa un correo para el líder
-        Y se programa un correo para el pastor principal
-        Y un fallo del correo no revierte la visita
+        Entonces se encola un correo para el líder
+        Y se encola un correo para el pastor principal
+        Y el envío inicia después del commit
+
+    Escenario: Reintentar una notificación fallida
+        Dado una notificación pendiente y una visita confirmada
+        Cuando el servidor SMTP rechaza la entrega
+        Entonces la visita permanece confirmada
+        Y se registra el intento fallido sin guardar credenciales
+        Y la notificación queda pendiente con una fecha de reintento
+        Y un worker vuelve a intentar la entrega cuando vence esa fecha
 ```
 
 ### HU-07: Ranking de líderes
@@ -732,11 +760,14 @@ SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=usuario-smtp
 SMTP_PASSWORD=secreto-smtp
+SMTP_USE_TLS=true
 EMAILS_FROM_EMAIL=no-reply@example.com
 ```
 
 Las contraseñas se almacenan únicamente mediante Argon2id o bcrypt. Los
 refresh tokens se rotan, revocan al cerrar sesión y expiran automáticamente.
+La configuración SMTP usa secretos del entorno; nunca se incluyen credenciales
+reales en este archivo.
 
 ## Pruebas
 
@@ -810,7 +841,11 @@ Actions usa PostgreSQL 17 efímero para migraciones e integración. HU-05
 implementa auditoría append-only de creación, modificación, reasignación,
 asignación de pastor principal y desactivación; `GET /api/v1/audit` aplica
 scope global ADMIN o scope de iglesia PASTOR con paginación, y PostgreSQL
-rechaza modificaciones y borrados directos. HU-06 a HU-09, recuperación de
-cuenta, CRUD administrativo de distritos e iglesias y frontend siguen
-pendientes. Se mantiene `INSTRUCTIOS.md` como contrato funcional y se implementa
-en iteraciones TDD.
+rechaza modificaciones y borrados directos. HU-06 encola notificaciones
+transaccionales para el líder y el pastor principal, las envía después del
+commit mediante SMTP y deja fallos en un outbox durable con backoff, contador de
+intentos y tipo de error; un worker del lifespan reintenta mensajes vencidos
+cada 30 segundos. HU-07 a HU-09,
+recuperación de cuenta, CRUD administrativo de distritos e iglesias y frontend
+siguen pendientes. Se mantiene `INSTRUCTIOS.md` como contrato funcional y se
+implementa en iteraciones TDD.

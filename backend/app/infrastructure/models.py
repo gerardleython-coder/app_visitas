@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     JSON,
     String,
     Text,
@@ -334,6 +335,57 @@ class AuditModel(Base):
         "datos_nuevos", JSON().with_variant(JSONB(), "postgresql")
     )
     reason: Mapped[str | None] = mapped_column("motivo", Text)
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class NotificationOutboxModel(Base):
+    __tablename__ = "notificaciones_outbox"
+    __table_args__ = (
+        CheckConstraint(
+            "estado IN ('PENDIENTE', 'PROCESANDO', 'ENVIADA')",
+            name="ck_notificacion_outbox_estado",
+        ),
+        UniqueConstraint(
+            "visita_id",
+            "destinatario_email",
+            "tipo",
+            name="uq_notificacion_outbox_visita_destinatario_tipo",
+        ),
+        Index("ix_notificacion_outbox_estado_reintento", "estado", "reintentar_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    visit_id: Mapped[UUID] = mapped_column(
+        "visita_id",
+        Uuid(as_uuid=True),
+        ForeignKey("visitas.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    recipient_email: Mapped[str] = mapped_column(
+        "destinatario_email", String(150), nullable=False
+    )
+    notification_type: Mapped[str] = mapped_column("tipo", String(40), nullable=False)
+    status: Mapped[str] = mapped_column(
+        "estado", String(20), nullable=False, default="PENDIENTE", server_default=text("'PENDIENTE'")
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        "intentos", Integer, nullable=False, default=0, server_default=text("0")
+    )
+    last_error: Mapped[str | None] = mapped_column("ultimo_error", String(100))
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        "reintentar_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        "bloqueado_hasta", DateTime(timezone=True)
+    )
+    last_attempt_at: Mapped[datetime | None] = mapped_column(
+        "ultimo_intento_at", DateTime(timezone=True)
+    )
+    sent_at: Mapped[datetime | None] = mapped_column("enviado_at", DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )
