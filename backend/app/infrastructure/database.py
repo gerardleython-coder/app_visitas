@@ -25,7 +25,7 @@ class Base(DeclarativeBase):
 
 
 def create_database_engine(database_url: str | None = None) -> AsyncEngine:
-    resolved_url = database_url or DatabaseSettings().database_url
+    resolved_url = database_url if database_url is not None else DatabaseSettings().database_url
     if not resolved_url:
         raise RuntimeError("DATABASE_URL debe configurarse en el entorno o en backend/.env")
 

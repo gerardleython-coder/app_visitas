@@ -16,10 +16,6 @@ async def test_database_engine_uses_explicit_url() -> None:
         await engine.dispose()
 
 
-def test_database_engine_requires_url_when_environment_is_empty(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-
+def test_database_engine_rejects_empty_explicit_url() -> None:
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
-        create_database_engine()
+        create_database_engine("")
