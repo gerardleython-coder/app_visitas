@@ -101,6 +101,8 @@ iglesias 1 --- N usuarios
 usuarios 1 --- N visitas como líder
 usuarios 1 --- N visitas como hermano
 usuarios 1 --- N usuarios como líder asignado a hermanos
+usuarios (HERMANO) 1 --- N asignaciones_hermano
+usuarios (LIDER) 1 --- N asignaciones_hermano
 visitas 1 --- N visita_historial
 ```
 
@@ -233,6 +235,19 @@ CREATE TABLE sesiones_refresh (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE asignaciones_hermano (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    hermano_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+    lider_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+    asignado_por UUID REFERENCES usuarios(id) ON DELETE RESTRICT,
+    fecha_asignacion TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_fin TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX uq_asignacion_vigente_hermano
+    ON asignaciones_hermano (hermano_id)
+    WHERE fecha_fin IS NULL;
+
 CREATE TABLE tokens_recuperacion (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
@@ -262,6 +277,10 @@ impedir que un hermano tenga un líder de otra iglesia o con rol distinto de
 `LIDER`. Las fechas relativas a `America/Bogota` se validan en dominio y
 aplicación, porque no deben depender de un `CHECK` con tiempo actual. Las
 migraciones Alembic serán la fuente de verdad ejecutable.
+
+`asignaciones_hermano` conserva cada líder responsable, quién hizo la asignación
+y sus fechas. Reasignar o desactivar un hermano cierra la asignación vigente; no
+se sobrescribe su historial.
 
 ## Historias de usuario y aceptación
 
@@ -357,6 +376,18 @@ Característica: Gestión de hermanos
         Y asigna el hermano al líder
         Entonces se crea un registro HERMANO activo sin credenciales
 
+    Escenario: Crear hermano como líder
+        Dado un LIDER activo y asignado a una iglesia
+        Cuando registra un hermano de su iglesia sin indicar otro líder
+        Entonces el hermano queda asignado al líder autenticado
+        Y no se crean email ni contraseña para el hermano
+
+    Escenario: Rechazar líder de otra iglesia
+        Dado un hermano y un líder activo de otra iglesia
+        Cuando ADMIN o PASTOR intenta asignarlos
+        Entonces la operación es rechazada
+        Y el hermano conserva su asignación anterior
+
     Escenario: Líder gestiona un hermano asignado
         Dado un LIDER y un hermano asignado a ese líder
         Cuando el líder consulta, edita o desactiva lógicamente el hermano
@@ -367,11 +398,23 @@ Característica: Gestión de hermanos
         Cuando intenta consultar, editar o desactivar el hermano
         Entonces la operación es rechazada
 
+    Escenario: Líder intenta cambiar la asignación
+        Dado un hermano asignado a un LIDER
+        Cuando ese LIDER intenta asignarlo a otro líder
+        Entonces la operación es rechazada
+
     Escenario: Reasignación de líder
         Dado un hermano activo y dos líderes de la misma iglesia
         Cuando ADMIN o PASTOR reasigna el hermano
         Entonces cambia el líder responsable
         Y se conserva la trazabilidad de la asignación
+        Y el historial registra el actor, el líder anterior y el nuevo
+
+    Escenario: Desactivar hermano sin borrar relaciones
+        Dado un hermano con asignaciones históricas
+        Cuando un usuario autorizado lo desactiva
+        Entonces queda inactivo
+        Y sus asignaciones históricas permanecen consultables
 ```
 
 ### HU-04: Gestión de visitas
@@ -625,6 +668,12 @@ Prefijo: `/api/v1`.
 Todos los endpoints protegidos deben verificar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
 
+Para `POST /hermanos`, ADMIN y PASTOR deben enviar `leader_id`; LIDER puede
+omitirlo y el backend asigna al líder autenticado. `PATCH /hermanos/{id}` solo
+actualiza nombre, apellido, teléfono y dirección. La reasignación usa
+`PATCH /hermanos/{id}/lider` y solo permite ADMIN o PASTOR; el distrito y la
+iglesia permanecen inmutables para conservar las relaciones históricas.
+
 ## Seguridad
 
 Crear `backend/.env` localmente y no versionarlo. Estos valores son
@@ -709,8 +758,10 @@ incluye creación, consulta, edición y desactivación lógica de pastores y lí
 con autorización por rol y alcance de iglesia. ADMIN puede asignar el pastor
 principal; la aplicación y un trigger PostgreSQL impiden desactivar al único
 principal activo sin reemplazo. Las migraciones validan la relación territorial
-y el estado de las iglesias. El esquema está aplicado en PostgreSQL 17 local;
-GitHub Actions usa PostgreSQL 17 efímero para migraciones e integración. Siguen
-pendientes recuperación de cuenta, CRUD administrativo de distritos e iglesias,
-las demás historias y el frontend. Se mantiene `INSTRUCTIOS.md` como contrato
-funcional y se implementa en iteraciones TDD.
+y el estado de las iglesias. HU-03 implementa CRUD de hermanos según alcance,
+reasignación de líder por ADMIN/PASTOR y conservación del historial; las
+migraciones impiden asignar líderes de otro rol o iglesia. El esquema está
+aplicado en PostgreSQL 17 local; GitHub Actions usa PostgreSQL 17 efímero para
+migraciones e integración. Siguen pendientes HU-04 a HU-09, recuperación de
+cuenta, CRUD administrativo de distritos e iglesias y el frontend. Se mantiene
+`INSTRUCTIOS.md` como contrato funcional y se implementa en iteraciones TDD.

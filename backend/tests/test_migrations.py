@@ -21,7 +21,13 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
     finally:
         engine.dispose()
 
-    assert {"distritos", "iglesias", "usuarios", "sesiones_refresh"} <= tables
+    assert {
+        "distritos",
+        "iglesias",
+        "usuarios",
+        "sesiones_refresh",
+        "asignaciones_hermano",
+    } <= tables
 
 
 def test_refresh_family_migration_backfills_existing_sessions(tmp_path: Path) -> None:
@@ -94,9 +100,16 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "c4d98e16f731:base", sql=True)
+    command.downgrade(downgrade_config, "77c81d294d3a:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
+    assert "DROP TABLE asignaciones_hermano" in downgrade_output.getvalue()
+    assert "DROP TRIGGER IF EXISTS trg_validar_lider_hermano ON usuarios" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS validar_lider_hermano()" in (
+        downgrade_output.getvalue()
+    )
     assert "DROP TRIGGER IF EXISTS trg_proteger_pastor_principal_unico ON usuarios" in (
         downgrade_output.getvalue()
     )
@@ -137,3 +150,8 @@ def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() 
     assert "CREATE TRIGGER trg_usuario_iglesia_activa" in generated_sql
     assert "CREATE FUNCTION impedir_desactivar_pastor_principal_unico()" in generated_sql
     assert "CREATE TRIGGER trg_proteger_pastor_principal_unico" in generated_sql
+    assert "CREATE FUNCTION validar_lider_hermano()" in generated_sql
+    assert "CREATE TRIGGER trg_validar_lider_hermano" in generated_sql
+    assert "CREATE FUNCTION proteger_lider_con_hermanos()" in generated_sql
+    assert "CREATE TRIGGER trg_proteger_lider_con_hermanos" in generated_sql
+    assert "CREATE FUNCTION validar_historial_asignacion_hermano()" in generated_sql

@@ -159,3 +159,44 @@ class RefreshSessionModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class BrotherAssignmentModel(Base):
+    __tablename__ = "asignaciones_hermano"
+    __table_args__ = (
+        Index(
+            "uq_asignacion_vigente_hermano",
+            "hermano_id",
+            unique=True,
+            postgresql_where=text("fecha_fin IS NULL"),
+            sqlite_where=text("fecha_fin IS NULL"),
+        ),
+        Index("ix_asignacion_hermano_fecha", "hermano_id", "fecha_asignacion"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    brother_id: Mapped[UUID] = mapped_column(
+        "hermano_id",
+        Uuid(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    leader_id: Mapped[UUID] = mapped_column(
+        "lider_id",
+        Uuid(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    assigned_by_id: Mapped[UUID | None] = mapped_column(
+        "asignado_por",
+        Uuid(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="RESTRICT"),
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        "fecha_asignacion", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        "fecha_fin", DateTime(timezone=True)
+    )
