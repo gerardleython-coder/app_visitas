@@ -718,6 +718,49 @@ Característica: Desactivación lógica
         Y no se borran los registros relacionados
 ```
 
+### HU-10: Administración territorial
+
+**Como** `ADMIN`, **quiero** administrar distritos e iglesias sin perder sus
+relaciones históricas, **para** mantener vigente la estructura territorial.
+
+```gherkin
+Característica: Administración territorial
+
+    Escenario: Administrar un distrito sin iglesias
+        Dado un usuario ADMIN autenticado
+        Cuando crea, renombra y elimina un distrito sin iglesias
+        Entonces cada cambio queda auditado
+
+    Escenario: Impedir eliminar un distrito con iglesias
+        Dado un distrito que tiene iglesias asociadas
+        Cuando ADMIN intenta eliminarlo
+        Entonces recibe un conflicto
+        Y el distrito y sus iglesias permanecen sin cambios
+
+    Escenario: Administrar una iglesia sin moverla de distrito
+        Dado una iglesia activa
+        Cuando ADMIN actualiza su nombre o dirección
+        Entonces sus datos cambian
+        Y permanece en el distrito original
+
+    Escenario: Desactivar una iglesia sin usuarios activos
+        Dado una iglesia sin usuarios activos
+        Cuando ADMIN la elimina
+        Entonces queda inactiva sin borrar su historial ni relaciones
+
+    Escenario: Impedir desactivar una iglesia con usuarios activos
+        Dado una iglesia con usuarios activos
+        Cuando ADMIN intenta eliminarla
+        Entonces recibe un conflicto
+        Y la iglesia permanece activa
+
+    Escenario: Denegar gestión territorial a PASTOR y LIDER
+        Dado un usuario autenticado con rol PASTOR o LIDER
+        Cuando intenta consultar o modificar distritos o iglesias
+        Entonces recibe una respuesta de permisos insuficientes
+        Y no se modifica ningún registro
+```
+
 ### Criterios de diseño para las HU
 
 - **INVEST:** cada HU debe tener un único valor de negocio, alcance acotado,
@@ -820,7 +863,7 @@ Backend:
 
 ```bash
 cd backend
-poetry run pytest --cov=app --cov-report=term-missing tests/
+RUN_POSTGRES_INTEGRATION=1 poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=91
 ```
 
 Frontend:
@@ -830,14 +873,14 @@ cd frontend
 flutter test --coverage
 ```
 
-La cobertura mínima objetivo es del 85 %. Deben cubrirse autorización,
+La cobertura mínima objetivo es del 91 %. Deben cubrirse autorización,
 asignaciones, fechas, duplicados, transiciones, auditoría, ranking, BLoCs,
 widgets y notificaciones desacopladas.
 
 ## GitHub Actions
 
 El workflow [Backend CI](.github/workflows/backend-ci.yml) ejecuta Ruff y pytest
-con cobertura mínima del 85 % para Python 3.11 y 3.12 en cada push y pull
+con cobertura mínima del 91 % para Python 3.11 y 3.12 en cada push y pull
 request dirigido a `main`.
 
 ## Estructura prevista

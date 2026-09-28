@@ -237,7 +237,7 @@ aplicación y presentación.
 El ciclo obligatorio es **RED -> GREEN -> REFACTOR**.
 
 - Backend: pruebas unitarias de dominio y casos de uso, integración HTTP y
-  persistencia, con `pytest-asyncio` y cobertura mínima del 85 %.
+  persistencia, con `pytest-asyncio` y cobertura mínima del 91 %.
 - Frontend: pruebas de BLoC con `bloc_test`, mocks con `mocktail` y widget
   tests de estados de carga, éxito y error.
 - Cubrir autorización, límites de iglesia, asignaciones, transiciones de

@@ -6,7 +6,12 @@ import pytest
 from app.application.manage_operators import OperatorManagement
 from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
-from app.domain.errors import ConflictException, ForbiddenException, NotFoundException
+from app.domain.errors import (
+    ConflictException,
+    DomainException,
+    ForbiddenException,
+    NotFoundException,
+)
 from app.domain.operator import OperatorProfile
 from app.domain.organization import Church
 
@@ -243,3 +248,97 @@ async def test_admin_cannot_assign_pastor_from_another_church_as_primary() -> No
             church_id,
             pastor.id,
         )
+
+
+async def test_operator_listing_rejects_invalid_role_and_unassigned_pastor() -> None:
+    repository = FakeOperatorRepository()
+    management = OperatorManagement(repository, FakeChurchRepository(), FakeAuditRepository())
+
+    with pytest.raises(DomainException):
+        await management.list_operators(account(UserRole.ADMIN), UserRole.HERMANO)
+    with pytest.raises(ForbiddenException):
+        await management.list_operators(account(UserRole.PASTOR), UserRole.LIDER)
+
+    unassigned_pastor = replace(operator(role=UserRole.PASTOR, church_id=uuid4()), church_id=None)
+    repository.profiles[unassigned_pastor.id] = unassigned_pastor
+    with pytest.raises(ForbiddenException):
+        await management.list_operators(
+            account(UserRole.PASTOR, unassigned_pastor.id),
+            UserRole.LIDER,
+        )
+
+
+async def test_operator_update_rejects_invalid_fields_inactive_and_missing_target() -> None:
+    target = operator(role=UserRole.LIDER, church_id=uuid4())
+
+    class VanishingOperatorRepository(FakeOperatorRepository):
+        async def update_operator(
+            self,
+            operator_id: UUID,
+            changes: dict[str, object],
+        ) -> OperatorProfile | None:
+            return None
+
+    repository = VanishingOperatorRepository(profiles={target.id: target})
+    audit = FakeAuditRepository()
+    management = OperatorManagement(repository, FakeChurchRepository(), audit)
+    admin = account(UserRole.ADMIN)
+
+    for changes in ({}, {"role": UserRole.ADMIN}):
+        with pytest.raises(DomainException):
+            await management.update_operator(admin, target.id, UserRole.LIDER, changes)
+    with pytest.raises(NotFoundException):
+        await management.update_operator(admin, target.id, UserRole.LIDER, {"name": "Updated"})
+
+    repository.profiles[target.id] = replace(target, active=False)
+    with pytest.raises(NotFoundException):
+        await management.update_operator(admin, target.id, UserRole.LIDER, {"name": "Updated"})
+    assert audit.records == []
+
+
+async def test_operator_deactivation_is_idempotent_and_requires_existing_church_lock() -> None:
+    church_id = uuid4()
+    inactive_leader = replace(
+        operator(role=UserRole.LIDER, church_id=church_id),
+        active=False,
+    )
+    primary_pastor = operator(
+        role=UserRole.PASTOR,
+        church_id=church_id,
+        is_primary_pastor=True,
+    )
+    repository = FakeOperatorRepository(
+        profiles={inactive_leader.id: inactive_leader, primary_pastor.id: primary_pastor}
+    )
+    audit = FakeAuditRepository()
+    management = OperatorManagement(repository, FakeChurchRepository(), audit)
+
+    result = await management.deactivate_operator(
+        account(UserRole.ADMIN),
+        inactive_leader.id,
+        UserRole.LIDER,
+    )
+    assert result == inactive_leader
+    with pytest.raises(NotFoundException):
+        await management.deactivate_operator(
+            account(UserRole.ADMIN),
+            primary_pastor.id,
+            UserRole.PASTOR,
+        )
+    assert audit.records == []
+
+
+async def test_setting_primary_pastor_rejects_non_admin_and_inactive_church() -> None:
+    church_id = uuid4()
+    pastor = operator(role=UserRole.PASTOR, church_id=church_id)
+    repository = FakeOperatorRepository(profiles={pastor.id: pastor}, church_ids={church_id})
+    management = OperatorManagement(
+        repository,
+        FakeChurchRepository({church_id: Church(church_id, uuid4(), active=False)}),
+        FakeAuditRepository(),
+    )
+
+    with pytest.raises(ForbiddenException):
+        await management.set_primary_pastor(account(UserRole.PASTOR), church_id, pastor.id)
+    with pytest.raises(NotFoundException):
+        await management.set_primary_pastor(account(UserRole.ADMIN), church_id, pastor.id)

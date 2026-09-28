@@ -7,7 +7,7 @@ import pytest
 from app.application.manage_brothers import ManageBrothers
 from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
-from app.domain.errors import ForbiddenException, NotFoundException
+from app.domain.errors import DomainException, ForbiddenException, NotFoundException
 from app.domain.operator import OperatorProfile
 from app.domain.organization import Church
 from app.domain.brother import BrotherProfile
@@ -325,3 +325,140 @@ async def test_only_admin_or_pastor_can_reassign_leader() -> None:
 
     assert reassigned.leader_id == replacement.id
     assert repository.assignments[-1] == (replacement.id, pastor.id, None)
+
+
+async def test_admin_create_rejects_invalid_church_and_leader_assignments() -> None:
+    district_id = uuid4()
+    church_id = uuid4()
+    leader = make_operator(UserRole.LIDER, church_id, district_id)
+    brothers = FakeBrotherRepository()
+    churches = FakeChurchRepository({church_id: Church(church_id, district_id)})
+    operators = FakeOperatorRepository({leader.id: leader})
+    management = ManageBrothers(brothers, operators, churches, FakeAuditRepository())
+    admin = make_account(UserRole.ADMIN)
+    create_args = {
+        "name": "Maria",
+        "surname": "Test",
+        "phone": "3001112233",
+        "address": "Address",
+        "district_id": district_id,
+        "church_id": church_id,
+        "leader_id": leader.id,
+    }
+
+    with pytest.raises(DomainException, match="Iglesia no encontrada"):
+        await management.create_brother(admin, **{**create_args, "church_id": uuid4()})
+    churches.churches[church_id] = replace(churches.churches[church_id], active=False)
+    with pytest.raises(DomainException, match="inactiva"):
+        await management.create_brother(admin, **create_args)
+    churches.churches[church_id] = replace(churches.churches[church_id], active=True)
+    with pytest.raises(DomainException, match="distrito"):
+        await management.create_brother(admin, **{**create_args, "district_id": uuid4()})
+
+    operators.operators[leader.id] = replace(leader, active=False)
+    with pytest.raises(DomainException, match="líder"):
+        await management.create_brother(admin, **create_args)
+    assert brothers.brothers == {}
+
+
+async def test_brother_update_rejects_invalid_inactive_and_disappearing_records() -> None:
+    church_id = uuid4()
+    brother = BrotherProfile(
+        id=uuid4(),
+        name="Original",
+        surname="Brother",
+        phone="3000000000",
+        address="Address",
+        district_id=uuid4(),
+        church_id=church_id,
+        leader_id=uuid4(),
+        active=True,
+    )
+
+    class VanishingBrotherRepository(FakeBrotherRepository):
+        async def update_brother(
+            self,
+            brother_id: UUID,
+            changes: dict[str, object],
+        ) -> BrotherProfile | None:
+            return None
+
+    repository = VanishingBrotherRepository(brothers={brother.id: brother})
+    management = ManageBrothers(
+        repository,
+        FakeOperatorRepository(),
+        FakeChurchRepository(),
+        FakeAuditRepository(),
+    )
+    admin = make_account(UserRole.ADMIN)
+
+    for changes in ({}, {"church_id": uuid4()}):
+        with pytest.raises(DomainException):
+            await management.update_brother(admin, brother.id, changes)
+    with pytest.raises(NotFoundException):
+        await management.update_brother(admin, brother.id, {"name": "Updated"})
+
+    repository.brothers[brother.id] = replace(brother, active=False)
+    with pytest.raises(NotFoundException):
+        await management.update_brother(admin, brother.id, {"name": "Updated"})
+
+
+async def test_brother_deactivation_is_idempotent_and_detects_missing_write() -> None:
+    brother = BrotherProfile(
+        id=uuid4(),
+        name="Inactive",
+        surname="Brother",
+        phone="3000000000",
+        address="Address",
+        district_id=uuid4(),
+        church_id=uuid4(),
+        leader_id=uuid4(),
+        active=False,
+    )
+    repository = FakeBrotherRepository(brothers={brother.id: brother})
+    audit = FakeAuditRepository()
+    management = ManageBrothers(
+        repository,
+        FakeOperatorRepository(),
+        FakeChurchRepository(),
+        audit,
+    )
+
+    assert await management.deactivate_brother(make_account(UserRole.ADMIN), brother.id) == brother
+    assert audit.records == []
+    with pytest.raises(NotFoundException):
+        await management.deactivate_brother(make_account(UserRole.ADMIN), uuid4())
+
+
+async def test_reassigning_same_leader_is_noop_and_invalid_leaders_are_rejected() -> None:
+    district_id = uuid4()
+    church_id = uuid4()
+    leader = make_operator(UserRole.LIDER, church_id, district_id)
+    brother = BrotherProfile(
+        id=uuid4(),
+        name="Assigned",
+        surname="Brother",
+        phone="3000000000",
+        address="Address",
+        district_id=district_id,
+        church_id=church_id,
+        leader_id=leader.id,
+        active=True,
+    )
+    audit = FakeAuditRepository()
+    management = ManageBrothers(
+        FakeBrotherRepository(brothers={brother.id: brother}),
+        FakeOperatorRepository({leader.id: leader}),
+        FakeChurchRepository(),
+        audit,
+    )
+
+    result = await management.reassign_leader(
+        make_account(UserRole.ADMIN),
+        brother.id,
+        leader.id,
+    )
+    assert result == brother
+    assert audit.records == []
+    with pytest.raises(DomainException, match="líder"):
+        await management.reassign_leader(make_account(UserRole.ADMIN), brother.id, uuid4())

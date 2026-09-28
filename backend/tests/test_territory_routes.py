@@ -1,9 +1,17 @@
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from app.domain.authentication import UserAccount, UserRole
+from app.domain.errors import (
+    ConflictException,
+    DomainException,
+    ForbiddenException,
+    NotFoundException,
+)
 from app.domain.organization import Church, District
 from app.main import app
 from app.presentation.dependencies import get_current_account, get_territory_management
@@ -146,3 +154,80 @@ def test_only_admin_can_manage_territories() -> None:
         app.dependency_overrides.pop(get_current_account, None)
 
     assert response.status_code == 403
+
+
+@dataclass
+class FailingTerritoryManagement:
+    error: Exception
+
+    def __getattr__(self, _name: str):
+        async def fail(*_args: object, **_kwargs: object) -> None:
+            raise self.error
+
+        return fail
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body", "error", "status", "code"),
+    [
+        ("get", "/api/v1/admin/distritos", None, ForbiddenException("denied"), 403, "forbidden"),
+        ("get", "/api/v1/admin/iglesias", None, NotFoundException("missing"), 404, "not_found"),
+        ("post", "/api/v1/admin/distritos", {"name": "North"}, DomainException("invalid"), 422, "invalid_operation"),
+        ("post", "/api/v1/admin/distritos", {"name": "North"}, IntegrityError("insert", {}, Exception()), 409, "conflict"),
+        ("patch", f"/api/v1/admin/distritos/{uuid4()}", {"name": "North"}, ConflictException("duplicate"), 409, "conflict"),
+        ("patch", f"/api/v1/admin/distritos/{uuid4()}", {"name": "North"}, IntegrityError("update", {}, Exception()), 409, "conflict"),
+        ("delete", f"/api/v1/admin/distritos/{uuid4()}", None, NotFoundException("missing"), 404, "not_found"),
+        ("delete", f"/api/v1/admin/distritos/{uuid4()}", None, IntegrityError("delete", {}, Exception()), 409, "conflict"),
+        ("get", "/api/v1/admin/iglesias", None, DomainException("invalid"), 422, "invalid_operation"),
+        ("post", "/api/v1/admin/iglesias", {"district_id": str(uuid4()), "name": "Central"}, ConflictException("duplicate"), 409, "conflict"),
+        ("post", "/api/v1/admin/iglesias", {"district_id": str(uuid4()), "name": "Central"}, IntegrityError("insert", {}, Exception()), 409, "conflict"),
+        ("patch", f"/api/v1/admin/iglesias/{uuid4()}", {"address": "Street"}, NotFoundException("missing"), 404, "not_found"),
+        ("patch", f"/api/v1/admin/iglesias/{uuid4()}", {"address": "Street"}, IntegrityError("update", {}, Exception()), 409, "conflict"),
+        ("delete", f"/api/v1/admin/iglesias/{uuid4()}", None, ConflictException("active users"), 409, "conflict"),
+        ("delete", f"/api/v1/admin/iglesias/{uuid4()}", None, IntegrityError("update", {}, Exception()), 409, "conflict"),
+    ],
+)
+def test_territory_routes_translate_application_errors(
+    method: str,
+    path: str,
+    body: dict[str, object] | None,
+    error: Exception,
+    status: int,
+    code: str,
+) -> None:
+    app.dependency_overrides[get_current_account] = lambda: account(UserRole.ADMIN)
+    app.dependency_overrides[get_territory_management] = lambda: FailingTerritoryManagement(error)
+    try:
+        with TestClient(app) as client:
+            response = getattr(client, method)(path, json=body) if body is not None else getattr(client, method)(path)
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+        app.dependency_overrides.pop(get_territory_management, None)
+
+    assert response.status_code == status
+    assert response.json()["detail"]["code"] == code
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        ("/api/v1/admin/distritos", {"name": "  "}),
+        ("/api/v1/admin/distritos", {"name": "North", "active": True}),
+        (f"/api/v1/admin/distritos/{uuid4()}", {}),
+        (f"/api/v1/admin/distritos/{uuid4()}", {"name": None}),
+        (f"/api/v1/admin/iglesias/{uuid4()}", {"district_id": str(uuid4())}),
+        (f"/api/v1/admin/iglesias/{uuid4()}", {}),
+    ],
+)
+def test_territory_routes_reject_invalid_payloads(path: str, body: dict[str, object]) -> None:
+    app.dependency_overrides[get_current_account] = lambda: account(UserRole.ADMIN)
+    app.dependency_overrides[get_territory_management] = lambda: FakeTerritoryManagement()
+    try:
+        with TestClient(app) as client:
+            method = "post" if path.endswith("distritos") else "patch"
+            response = getattr(client, method)(path, json=body)
+    finally:
+        app.dependency_overrides.pop(get_current_account, None)
+        app.dependency_overrides.pop(get_territory_management, None)
+
+    assert response.status_code == 422

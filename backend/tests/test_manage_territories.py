@@ -6,7 +6,12 @@ import pytest
 from app.application.manage_territories import ManageTerritories
 from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
-from app.domain.errors import ConflictException, ForbiddenException
+from app.domain.errors import (
+    ConflictException,
+    DomainException,
+    ForbiddenException,
+    NotFoundException,
+)
 from app.domain.organization import Church, District
 
 
@@ -191,3 +196,116 @@ async def test_non_admin_cannot_manage_territories() -> None:
         await manager.create_district(pastor, "Unauthorized")
 
     assert repository.districts == {}
+
+
+@pytest.mark.parametrize(
+    "actor",
+    [
+        UserAccount(uuid4(), "leader@example.test", "hash", UserRole.LIDER, True),
+        UserAccount(uuid4(), "brother@example.test", None, UserRole.HERMANO, True),
+        UserAccount(uuid4(), "inactive@example.test", "hash", UserRole.ADMIN, False),
+    ],
+)
+async def test_inactive_or_non_admin_cannot_list_territories(actor: UserAccount) -> None:
+    manager = ManageTerritories(FakeTerritoryRepository(), FakeAuditRepository())
+
+    with pytest.raises(ForbiddenException):
+        await manager.list_districts(actor)
+
+
+async def test_district_update_rejects_empty_unknown_and_invalid_names() -> None:
+    actor = admin()
+    district = District(id=uuid4(), name="North")
+    repository = FakeTerritoryRepository(districts={district.id: district})
+    audit = FakeAuditRepository()
+    manager = ManageTerritories(repository, audit)
+
+    for changes in ({}, {"district_id": uuid4()}, {"name": None}, {"name": "   "}, {"name": 7}):
+        with pytest.raises(DomainException):
+            await manager.update_district(actor, district.id, changes)
+
+    assert await repository.get_district(district.id) == district
+    assert audit.records == []
+
+
+async def test_district_mutations_report_missing_resources() -> None:
+    actor = admin()
+    district = District(id=uuid4(), name="North")
+
+    class VanishingDistrictRepository(FakeTerritoryRepository):
+        async def update_district(
+            self,
+            district_id: UUID,
+            changes: dict[str, object],
+        ) -> District | None:
+            return None
+
+        async def delete_district(self, district_id: UUID) -> bool:
+            return False
+
+    repository = VanishingDistrictRepository(districts={district.id: district})
+    manager = ManageTerritories(repository, FakeAuditRepository())
+
+    with pytest.raises(NotFoundException):
+        await manager.update_district(actor, district.id, {"name": "Renamed"})
+    with pytest.raises(NotFoundException):
+        await manager.delete_district(actor, district.id)
+    with pytest.raises(NotFoundException):
+        await manager.delete_district(actor, uuid4())
+
+
+async def test_church_creation_requires_existing_district_and_nonblank_name() -> None:
+    actor = admin()
+    district = District(id=uuid4(), name="South")
+    repository = FakeTerritoryRepository(districts={district.id: district})
+    manager = ManageTerritories(repository, FakeAuditRepository())
+
+    with pytest.raises(NotFoundException):
+        await manager.create_church(
+            actor,
+            district_id=uuid4(),
+            name="Central",
+            address=None,
+        )
+    with pytest.raises(DomainException):
+        await manager.create_church(
+            actor,
+            district_id=district.id,
+            name="   ",
+            address="   ",
+        )
+
+
+async def test_church_update_rejects_invalid_changes_and_inactive_churches() -> None:
+    actor = admin()
+    district = District(id=uuid4(), name="South")
+    church = Church(id=uuid4(), district_id=district.id, name="Central")
+    repository = FakeTerritoryRepository(
+        districts={district.id: district},
+        churches={church.id: church},
+    )
+    audit = FakeAuditRepository()
+    manager = ManageTerritories(repository, audit)
+
+    for changes in ({}, {"district_id": uuid4()}, {"name": None}, {"name": " "}, {"name": 7}, {"address": 7}):
+        with pytest.raises(DomainException):
+            await manager.update_church(actor, church.id, changes)
+
+    repository.churches[church.id] = replace(church, active=False)
+    with pytest.raises(NotFoundException):
+        await manager.update_church(actor, church.id, {"name": "Renamed"})
+    with pytest.raises(NotFoundException):
+        await manager.update_church(actor, uuid4(), {"name": "Missing"})
+    assert audit.records == []
+
+
+async def test_inactive_church_delete_is_idempotent_without_duplicate_audit() -> None:
+    actor = admin()
+    church = Church(id=uuid4(), district_id=uuid4(), name="Closed", active=False)
+    repository = FakeTerritoryRepository(churches={church.id: church})
+    audit = FakeAuditRepository()
+
+    result = await ManageTerritories(repository, audit).delete_church(actor, church.id)
+
+    assert result == church
+    assert audit.records == []

@@ -60,4 +60,4 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://app_visitas_test:ci-only-password@localhost:5432/app_visitas_test
           RUN_POSTGRES_INTEGRATION: "1"
-        run: poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=85
+        run: poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=91
