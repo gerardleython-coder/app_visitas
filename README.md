@@ -617,6 +617,23 @@ Característica: Ranking de líderes
         Dado dos líderes con la misma cantidad de visitas COMPLETADA
         Cuando se calcula el ranking
         Entonces ambos reciben la misma posición
+
+    Escenario: Ranking semanal usa el calendario de Bogota
+        Dado visitas completadas de líderes de una iglesia
+        Y el período solicitado es SEMANA con una fecha de referencia
+        Cuando ADMIN o PASTOR consulta el ranking
+        Entonces se incluyen las visitas completadas desde el lunes a las 00:00
+        Y se excluyen las visitas desde el lunes siguiente a las 00:00
+
+    Escenario: Limitar ranking a la iglesia del pastor
+        Dado un PASTOR con una iglesia activa asignada
+        Cuando solicita un ranking de otra iglesia
+        Entonces la operación es rechazada
+
+    Escenario: Denegar ranking a un líder
+        Dado un LIDER autenticado
+        Cuando solicita un ranking
+        Entonces la operación es rechazada
 ```
 
 ### HU-08: Sesiones y recuperación de cuenta
@@ -727,7 +744,7 @@ Prefijo: `/api/v1`.
 | `DELETE /visitas/{id}` | ADMIN, PASTOR o LIDER asignado; cancela con motivo, sin borrar |
 | `GET /visitas/{id}/history` | ADMIN o PASTOR en alcance |
 | `GET /audit?offset=0&limit=100` | ADMIN global o PASTOR dentro de su iglesia; paginado, `limit` máximo 500 |
-| `GET /reports/ranking` | ADMIN global o PASTOR de su iglesia |
+| `GET /reports/ranking?period=SEMANA\|MES&church_id=...&reference_date=YYYY-MM-DD` | ADMIN indica iglesia; PASTOR queda limitado a la suya |
 
 Todos los endpoints protegidos deben verificar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
@@ -845,7 +862,9 @@ rechaza modificaciones y borrados directos. HU-06 encola notificaciones
 transaccionales para el líder y el pastor principal, las envía después del
 commit mediante SMTP y deja fallos en un outbox durable con backoff, contador de
 intentos y tipo de error; un worker del lifespan reintenta mensajes vencidos
-cada 30 segundos. HU-07 a HU-09,
-recuperación de cuenta, CRUD administrativo de distritos e iglesias y frontend
-siguen pendientes. Se mantiene `INSTRUCTIOS.md` como contrato funcional y se
-implementa en iteraciones TDD.
+cada 30 segundos. HU-07 implementa ranking por iglesia con `DENSE_RANK()` de
+visitas completadas por `fecha_completada`, periodos de semana/mes en
+`America/Bogota` y scope ADMIN/PASTOR. HU-08 a HU-09, recuperación de cuenta,
+CRUD administrativo de distritos e iglesias y frontend siguen pendientes. Se
+mantiene `INSTRUCTIOS.md` como contrato funcional y se implementa en iteraciones
+TDD.

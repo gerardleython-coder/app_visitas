@@ -11,6 +11,7 @@ from app.application.create_operator import CreateOperator
 from app.application.manage_operators import OperatorManagement
 from app.application.manage_visits import ManageVisits
 from app.application.logout_user import LogoutUser
+from app.application.leader_ranking import GetLeaderRanking
 from app.application.rotate_refresh_token import RotateRefreshToken
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import UnauthorizedException
@@ -32,6 +33,7 @@ from app.infrastructure.user_repository import SQLAlchemyUserRepository
 from app.infrastructure.visit_repository import SQLAlchemyVisitRepository
 from app.infrastructure.visit_notification_dispatcher import VisitNotificationDispatcher
 from app.infrastructure.visit_notification_queue import SQLAlchemyVisitNotificationQueue
+from app.infrastructure.leader_ranking_repository import SQLAlchemyLeaderRankingRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -190,6 +192,15 @@ async def get_visit_notification_dispatcher() -> VisitNotificationDispatcher:
     return VisitNotificationDispatcher(
         database_url=DatabaseSettings().database_url,
         sender=SMTPEmailSender(SMTPSettings()),
+    )
+
+
+async def get_leader_ranking(
+    session: AsyncSession = Depends(get_db_session),
+) -> GetLeaderRanking:
+    return GetLeaderRanking(
+        rankings=SQLAlchemyLeaderRankingRepository(session),
+        operators=SQLAlchemyOperatorRepository(session),
     )
 
 

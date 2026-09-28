@@ -8,6 +8,7 @@ from app.presentation.audit import router as audit_router
 from app.presentation.auth import router as auth_router
 from app.presentation.brothers import router as brothers_router
 from app.presentation.operators import router as operators_router
+from app.presentation.ranking import router as ranking_router
 from app.presentation.visits import router as visits_router
 from app.infrastructure.database import DatabaseSettings
 from app.infrastructure.email_service import SMTPEmailSender, SMTPSettings
@@ -37,6 +38,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
 app.include_router(brothers_router, prefix="/api/v1")
 app.include_router(operators_router, prefix="/api/v1")
+app.include_router(ranking_router, prefix="/api/v1")
 app.include_router(visits_router, prefix="/api/v1")
 
 

@@ -119,7 +119,11 @@ consultar el historial; `LIDER` solo consulta el estado actual de sus registros.
 
 El ranking se calcula por iglesia y período (`SEMANA` o `MES`), contando solo
 visitas `COMPLETADA`. La posición se obtiene con `DENSE_RANK()`, por lo que los
-empates comparten posición. Se usa la zona horaria `America/Bogota`.
+empates comparten posición. El conteo usa `fecha_completada`; `SEMANA` empieza
+el lunes a las 00:00 y termina el lunes siguiente, y `MES` empieza el primer día
+del mes y termina el primer día del mes siguiente. Ambos límites se interpretan
+en `America/Bogota`; el inicio es inclusivo y el fin exclusivo. ADMIN debe
+indicar una iglesia; PASTOR consulta únicamente la iglesia activa asignada.
 
 ### Notificaciones
 
@@ -157,7 +161,8 @@ La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 - CRUD de `/visitas` según alcance y reglas de estado.
 - `GET /visitas/{id}/history` para `ADMIN` y `PASTOR`.
 - `GET /audit` para `ADMIN` global y `PASTOR` dentro de su iglesia.
-- `GET /reports/ranking` por iglesia y período.
+- `GET /reports/ranking?period=SEMANA|MES&church_id=...&reference_date=YYYY-MM-DD`
+  para ADMIN y PASTOR; ADMIN indica iglesia y PASTOR queda limitado a la suya.
 
 Todos los endpoints protegidos deben comprobar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
