@@ -687,7 +687,8 @@ app-pastoral/
 │   │   ├── infrastructure/
 │   │   └── presentation/
 │   ├── tests/
-│   ├── alembic/
+│   ├── alembic.ini
+│   ├── migrations/
 │   ├── Dockerfile
 │   └── pyproject.toml
 └── frontend/
@@ -701,8 +702,10 @@ app-pastoral/
 
 ## Estado del proyecto
 
-El backend tiene el endpoint de salud y el primer caso de uso de autenticación
-en dominio/aplicación, cubierto con pruebas unitarias. GitHub Actions valida
-lint y cobertura. La autenticación HTTP, persistencia, migraciones y frontend
-siguen pendientes y se implementarán en iteraciones TDD, manteniendo
-`INSTRUCTIOS.md` como contrato funcional.
+El backend tiene el endpoint de salud, el caso de uso inicial de autenticación
+y modelos/repositorio SQLAlchemy para distritos, iglesias y usuarios. Alembic
+incluye la migración inicial y se valida con pruebas SQLite y DDL PostgreSQL
+offline. GitHub Actions valida lint y cobertura. La API de autenticación, la
+integración contra PostgreSQL local, el resto de entidades y el frontend siguen
+pendientes y se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md`
+como contrato funcional.
