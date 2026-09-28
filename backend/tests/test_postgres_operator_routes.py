@@ -370,6 +370,25 @@ def test_admin_operator_routes_persist_assignment_and_enforce_role_scope(
                 headers=pastor_headers,
             )
             assert deactivated_leader.status_code == 204
+            assert client.post(
+                "/api/v1/auth/login",
+                json={"email": leader_email, "password": leader_password},
+            ).status_code == 401
+
+            audit_response = client.get("/api/v1/audit", headers=admin_headers)
+            assert audit_response.status_code == 200
+            leader_events = [
+                event
+                for event in audit_response.json()
+                if event["resource_id"] == leader_response.json()["id"]
+            ]
+            deactivation_event = next(
+                event for event in leader_events if event["action"] == "DESACTIVADO"
+            )
+            assert {event["action"] for event in leader_events} >= {"CREADO", "DESACTIVADO"}
+            assert deactivation_event["actor_id"] == replacement_pastor_response.json()["id"]
+            assert deactivation_event["previous_values"]["active"] is True
+            assert deactivation_event["new_values"]["active"] is False
 
         operators = asyncio.run(get_created_operators())
         assert {operator.email for operator in operators} == {

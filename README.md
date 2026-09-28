@@ -879,6 +879,8 @@ visitas completadas por `fecha_completada`, periodos de semana/mes en
 `America/Bogota` y scope ADMIN/PASTOR. HU-08 implementa recuperación con token
 aleatorio de 30 minutos almacenado como SHA-256, respuesta anti-enumeración,
 consumo de un uso y revocación de refresh tokens al cambiar la contraseña.
-HU-09, CRUD administrativo de distritos e iglesias y frontend siguen pendientes.
-Se mantiene `INSTRUCTIONS.md` como contrato funcional y se implementa en
-iteraciones TDD.
+HU-09 verifica desactivación lógica de hermanos y operadores, historial de
+visitas y asignaciones preservado, bloqueo de nuevas visitas y rechazo de login
+para cuentas inactivas. CRUD administrativo de distritos e iglesias y frontend
+siguen pendientes. Se mantiene `INSTRUCTIONS.md` como contrato funcional y se
+implementa en iteraciones TDD.

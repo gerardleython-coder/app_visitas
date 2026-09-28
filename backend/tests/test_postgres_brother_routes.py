@@ -8,13 +8,21 @@ from uuid import UUID, uuid4
 import jwt
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, inspect, text
+from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.domain.authentication import UserRole
 from app.infrastructure.database import create_database_engine
-from app.infrastructure.models import AuditModel, ChurchModel, DistrictModel, UserModel
+from app.infrastructure.models import (
+    AuditModel,
+    ChurchModel,
+    DistrictModel,
+    NotificationOutboxModel,
+    UserModel,
+    VisitHistoryModel,
+    VisitModel,
+)
 from app.infrastructure.password_service import Argon2PasswordService
 from app.main import app
 
@@ -224,6 +232,44 @@ def brother_scenario(monkeypatch: pytest.MonkeyPatch) -> BrotherScenario:
                                 {"brother_ids": scenario.brother_ids},
                             )
                     if scenario.brother_ids:
+                        visit_ids = select(VisitModel.id).where(
+                            VisitModel.brother_id.in_(scenario.brother_ids)
+                        )
+                        await connection.execute(
+                            delete(NotificationOutboxModel).where(
+                                NotificationOutboxModel.visit_id.in_(visit_ids)
+                            )
+                        )
+                        await connection.execute(
+                            text(
+                                "ALTER TABLE visita_historial "
+                                "DISABLE TRIGGER trg_proteger_historial_visita"
+                            )
+                        )
+                        await connection.execute(
+                            text(
+                                "ALTER TABLE visitas "
+                                "DISABLE TRIGGER trg_impedir_eliminar_visita"
+                            )
+                        )
+                        await connection.execute(
+                            delete(VisitHistoryModel).where(
+                                VisitHistoryModel.visit_id.in_(visit_ids)
+                            )
+                        )
+                        await connection.execute(delete(VisitModel).where(VisitModel.id.in_(visit_ids)))
+                        await connection.execute(
+                            text(
+                                "ALTER TABLE visitas "
+                                "ENABLE TRIGGER trg_impedir_eliminar_visita"
+                            )
+                        )
+                        await connection.execute(
+                            text(
+                                "ALTER TABLE visita_historial "
+                                "ENABLE TRIGGER trg_proteger_historial_visita"
+                            )
+                        )
                         await connection.execute(
                             delete(UserModel).where(UserModel.id.in_(scenario.brother_ids))
                         )
@@ -454,6 +500,111 @@ def test_brother_routes_enforce_scope_and_preserve_leader_assignment_history(
     assert assignments[1]["lider_id"] == scenario.other_leader_id
     assert assignments[1]["asignado_por"] == scenario.pastor_id
     assert assignments[1]["fecha_fin"] is not None
+
+
+def test_deactivated_brother_keeps_visits_and_history_but_cannot_receive_new_visits(
+    brother_scenario: BrotherScenario,
+) -> None:
+    scenario = brother_scenario
+    admin_headers = scenario.headers(scenario.admin_id, UserRole.ADMIN)
+    pastor_headers = scenario.headers(scenario.pastor_id, UserRole.PASTOR)
+    scheduled_at = datetime.now(UTC) + timedelta(days=2)
+
+    with TestClient(app) as client:
+        brother_response = client.post(
+            "/api/v1/hermanos",
+            headers=admin_headers,
+            json={
+                "name": "History",
+                "surname": "Preserved",
+                "phone": "3001234567",
+                "address": "Test address",
+                "district_id": str(scenario.district_id),
+                "church_id": str(scenario.church_id),
+                "leader_id": str(scenario.leader_id),
+            },
+        )
+        assert brother_response.status_code == 201
+        brother_id = UUID(brother_response.json()["id"])
+        scenario.brother_ids.append(brother_id)
+
+        visit_response = client.post(
+            "/api/v1/visitas",
+            headers=admin_headers,
+            json={
+                "brother_id": str(brother_id),
+                "visit_type": "CUIDADO_PASTORAL",
+                "scheduled_at": scheduled_at.isoformat(),
+                "duration_minutes": 30,
+                "location": "Church",
+                "observations": "Keep this history",
+            },
+        )
+        assert visit_response.status_code == 201
+        visit_id = UUID(visit_response.json()["id"])
+
+        deactivated = client.delete(
+            f"/api/v1/hermanos/{brother_id}",
+            headers=pastor_headers,
+        )
+        assert deactivated.status_code == 204
+
+        retained_visit = client.get(f"/api/v1/visitas/{visit_id}", headers=admin_headers)
+        assert retained_visit.status_code == 200
+        history = client.get(
+            f"/api/v1/visitas/{visit_id}/history",
+            headers=admin_headers,
+        )
+        assert history.status_code == 200
+        assert [entry["action"] for entry in history.json()] == ["CREADA"]
+
+        new_visit = client.post(
+            "/api/v1/visitas",
+            headers=admin_headers,
+            json={
+                "brother_id": str(brother_id),
+                "visit_type": "CUIDADO_PASTORAL",
+                "scheduled_at": (scheduled_at + timedelta(days=1)).isoformat(),
+                "duration_minutes": 30,
+                "location": "Church",
+                "observations": "Must be rejected",
+            },
+        )
+        assert new_visit.status_code == 404
+
+        audit_response = client.get("/api/v1/audit", headers=admin_headers)
+        assert audit_response.status_code == 200
+        assert any(
+            event["resource_id"] == str(brother_id)
+            and event["action"] == "DESACTIVADO"
+            and event["previous_values"]["active"] is True
+            and event["new_values"]["active"] is False
+            for event in audit_response.json()
+        )
+
+    async def read_retained_rows() -> tuple[bool, int, int]:
+        engine = create_database_engine()
+        try:
+            session_factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with session_factory() as session:
+                brother = await session.get(UserModel, brother_id)
+                visit_count = await session.scalar(
+                    select(func.count()).select_from(VisitModel).where(VisitModel.id == visit_id)
+                )
+                history_count = await session.scalar(
+                    select(func.count())
+                    .select_from(VisitHistoryModel)
+                    .where(VisitHistoryModel.visit_id == visit_id)
+                )
+                return (
+                    brother is not None and not brother.active,
+                    int(visit_count or 0),
+                    int(history_count or 0),
+                )
+        finally:
+            await engine.dispose()
+
+    assert asyncio.run(read_retained_rows()) == (True, 1, 1)
 
 
 @pytest.mark.parametrize("invalid_leader", ["pastor_id", "foreign_leader_id"])
