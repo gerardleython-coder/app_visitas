@@ -3,6 +3,8 @@ from typing import Protocol
 from uuid import UUID
 
 from app.application.brother_access import strategy_for
+from app.application.audit import AuditRepository
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import DomainException, ForbiddenException, NotFoundException
 from app.domain.operator import OperatorProfile
@@ -72,10 +74,12 @@ class ManageBrothers:
         brothers: BrotherRepository,
         operators: OperatorRepository,
         churches: ChurchRepository,
+        audit: AuditRepository,
     ) -> None:
         self._brothers = brothers
         self._operators = operators
         self._churches = churches
+        self._audit = audit
 
     async def list_brothers(self, actor: UserAccount) -> list[BrotherProfile]:
         strategy = strategy_for(actor.role)
@@ -134,7 +138,7 @@ class ManageBrothers:
         ):
             raise DomainException("El líder debe estar activo y pertenecer a la iglesia")
 
-        return await self._brothers.create_brother(
+        brother = await self._brothers.create_brother(
             name=name,
             surname=surname,
             phone=phone,
@@ -145,6 +149,17 @@ class ManageBrothers:
             assigned_by_id=actor.id,
             assigned_at=datetime.now(UTC),
         )
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="HERMANO",
+                resource_id=brother.id,
+                action="CREADO",
+                church_id=brother.church_id,
+                new_values=self._brother_values(brother),
+            )
+        )
+        return brother
 
     async def update_brother(
         self,
@@ -160,6 +175,17 @@ class ManageBrothers:
         updated = await self._brothers.update_brother(brother_id, changes)
         if updated is None:
             raise NotFoundException("Hermano no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="HERMANO",
+                resource_id=updated.id,
+                action="MODIFICADO",
+                church_id=updated.church_id,
+                previous_values=self._brother_values(brother),
+                new_values=self._brother_values(updated),
+            )
+        )
         return updated
 
     async def deactivate_brother(
@@ -176,6 +202,17 @@ class ManageBrothers:
         )
         if deactivated is None:
             raise NotFoundException("Hermano no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="HERMANO",
+                resource_id=deactivated.id,
+                action="DESACTIVADO",
+                church_id=deactivated.church_id,
+                previous_values=self._brother_values(brother),
+                new_values=self._brother_values(deactivated),
+            )
+        )
         return deactivated
 
     async def reassign_leader(
@@ -212,6 +249,17 @@ class ManageBrothers:
         )
         if reassigned is None:
             raise NotFoundException("Hermano no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="HERMANO",
+                resource_id=reassigned.id,
+                action="LIDER_REASIGNADO",
+                church_id=reassigned.church_id,
+                previous_values={"leader_id": str(brother.leader_id)},
+                new_values={"leader_id": str(reassigned.leader_id)},
+            )
+        )
         return reassigned
 
     async def _can_access(self, actor: UserAccount, brother: BrotherProfile) -> bool:
@@ -235,3 +283,16 @@ class ManageBrothers:
         if profile is None or profile.role is not expected_role or not profile.active:
             raise ForbiddenException("La cuenta no tiene una asignación activa")
         return profile
+
+    @staticmethod
+    def _brother_values(brother: BrotherProfile) -> dict[str, object]:
+        return {
+            "name": brother.name,
+            "surname": brother.surname,
+            "phone": brother.phone,
+            "address": brother.address,
+            "district_id": str(brother.district_id),
+            "church_id": str(brother.church_id),
+            "leader_id": str(brother.leader_id),
+            "active": brother.active,
+        }

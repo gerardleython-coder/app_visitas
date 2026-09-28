@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.application.manage_brothers import ManageBrothers
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import ForbiddenException, NotFoundException
 from app.domain.operator import OperatorProfile
@@ -123,6 +124,14 @@ class FakeChurchRepository:
         return self.churches.get(church_id)
 
 
+@dataclass
+class FakeAuditRepository:
+    records: list[AuditRecord] = field(default_factory=list)
+
+    async def record_event(self, record: AuditRecord) -> None:
+        self.records.append(record)
+
+
 def make_operator(role: UserRole, church_id: UUID, district_id: UUID) -> OperatorProfile:
     return OperatorProfile(
         id=uuid4(),
@@ -152,12 +161,14 @@ async def test_leader_creates_brother_assigned_to_self() -> None:
     leader = make_operator(UserRole.LIDER, church_id, district_id)
     actor = make_account(UserRole.LIDER, leader.id)
     brothers = FakeBrotherRepository()
+    audit = FakeAuditRepository()
     management = ManageBrothers(
         brothers=brothers,
         operators=FakeOperatorRepository({leader.id: leader}),
         churches=FakeChurchRepository(
             {church_id: Church(church_id, district_id, active=True)}
         ),
+        audit=audit,
     )
 
     brother = await management.create_brother(
@@ -172,6 +183,8 @@ async def test_leader_creates_brother_assigned_to_self() -> None:
 
     assert brother.leader_id == leader.id
     assert brothers.assignments == [(leader.id, actor.id, None)]
+    assert audit.records[0].resource_id == brother.id
+    assert audit.records[0].action == "CREADO"
 
 
 async def test_leader_cannot_create_brother_for_another_leader() -> None:
@@ -180,6 +193,7 @@ async def test_leader_cannot_create_brother_for_another_leader() -> None:
     leader = make_operator(UserRole.LIDER, church_id, district_id)
     other_leader = make_operator(UserRole.LIDER, church_id, district_id)
     brothers = FakeBrotherRepository()
+    audit = FakeAuditRepository()
     management = ManageBrothers(
         brothers=brothers,
         operators=FakeOperatorRepository(
@@ -188,6 +202,7 @@ async def test_leader_cannot_create_brother_for_another_leader() -> None:
         churches=FakeChurchRepository(
             {church_id: Church(church_id, district_id, active=True)}
         ),
+        audit=audit,
     )
 
     with pytest.raises(ForbiddenException):
@@ -203,6 +218,7 @@ async def test_leader_cannot_create_brother_for_another_leader() -> None:
         )
 
     assert brothers.brothers == {}
+    assert audit.records == []
 
 
 async def test_pastor_lists_only_brothers_from_their_church() -> None:
@@ -229,6 +245,7 @@ async def test_pastor_lists_only_brothers_from_their_church() -> None:
         ),
         operators=FakeOperatorRepository({pastor.id: pastor}),
         churches=FakeChurchRepository(),
+        audit=FakeAuditRepository(),
     )
 
     result = await management.list_brothers(actor)
@@ -255,6 +272,7 @@ async def test_leader_cannot_read_brother_assigned_to_another_leader() -> None:
         brothers=FakeBrotherRepository({brother.id: brother}),
         operators=FakeOperatorRepository({leader.id: leader}),
         churches=FakeChurchRepository(),
+        audit=FakeAuditRepository(),
     )
 
     with pytest.raises(NotFoundException):
@@ -289,6 +307,7 @@ async def test_only_admin_or_pastor_can_reassign_leader() -> None:
         brothers=repository,
         operators=operator_repository,
         churches=FakeChurchRepository(),
+        audit=FakeAuditRepository(),
     )
 
     with pytest.raises(ForbiddenException):

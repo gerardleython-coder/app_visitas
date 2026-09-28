@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.application.manage_operators import OperatorManagement
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import ConflictException, ForbiddenException, NotFoundException
 from app.domain.operator import OperatorProfile
@@ -90,6 +91,14 @@ class FakeChurchRepository:
         return self.churches.get(church_id)
 
 
+@dataclass
+class FakeAuditRepository:
+    records: list[AuditRecord] = field(default_factory=list)
+
+    async def record_event(self, record: AuditRecord) -> None:
+        self.records.append(record)
+
+
 def operator(
     *,
     role: UserRole,
@@ -132,7 +141,7 @@ async def test_pastor_lists_only_leaders_from_their_church() -> None:
             other_leader.id: other_leader,
         }
     )
-    management = OperatorManagement(repository, FakeChurchRepository())
+    management = OperatorManagement(repository, FakeChurchRepository(), FakeAuditRepository())
 
     result = await management.list_operators(
         account(UserRole.PASTOR, pastor.id),
@@ -149,7 +158,7 @@ async def test_pastor_cannot_list_or_edit_pastors() -> None:
     repository = FakeOperatorRepository(
         profiles={pastor.id: pastor, other_pastor.id: other_pastor}
     )
-    management = OperatorManagement(repository, FakeChurchRepository())
+    management = OperatorManagement(repository, FakeChurchRepository(), FakeAuditRepository())
     actor = account(UserRole.PASTOR, pastor.id)
 
     with pytest.raises(ForbiddenException):
@@ -169,7 +178,7 @@ async def test_pastor_cannot_edit_leader_from_another_church() -> None:
     repository = FakeOperatorRepository(
         profiles={pastor.id: pastor, other_leader.id: other_leader}
     )
-    management = OperatorManagement(repository, FakeChurchRepository())
+    management = OperatorManagement(repository, FakeChurchRepository(), FakeAuditRepository())
 
     with pytest.raises(NotFoundException):
         await management.update_operator(
@@ -192,9 +201,11 @@ async def test_sole_primary_pastor_requires_replacement_before_deactivation() ->
         profiles={primary.id: primary, replacement.id: replacement},
         church_ids={church_id},
     )
+    audit = FakeAuditRepository()
     management = OperatorManagement(
         repository,
         FakeChurchRepository({church_id: Church(church_id, uuid4())}),
+        audit,
     )
     admin = account(UserRole.ADMIN)
 
@@ -207,6 +218,10 @@ async def test_sole_primary_pastor_requires_replacement_before_deactivation() ->
     assert deactivated.active is False
     assert deactivated.is_primary_pastor is False
     assert repository.profiles[replacement.id].is_primary_pastor is True
+    assert [event.action for event in audit.records] == [
+        "PASTOR_PRINCIPAL_ASIGNADO",
+        "DESACTIVADO",
+    ]
 
 
 async def test_admin_cannot_assign_pastor_from_another_church_as_primary() -> None:
@@ -219,6 +234,7 @@ async def test_admin_cannot_assign_pastor_from_another_church_as_primary() -> No
     management = OperatorManagement(
         repository,
         FakeChurchRepository({church_id: Church(church_id, uuid4())}),
+        FakeAuditRepository(),
     )
 
     with pytest.raises(NotFoundException):

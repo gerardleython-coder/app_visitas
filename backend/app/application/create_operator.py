@@ -1,6 +1,8 @@
 from typing import Protocol
 from uuid import UUID
 
+from app.application.audit import AuditRepository
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import DomainException, ForbiddenException
 from app.domain.organization import Church
@@ -34,15 +36,18 @@ class CreateOperator:
         churches: ChurchRepository,
         operators: OperatorRepository,
         passwords: PasswordHasher,
+        audit: AuditRepository,
     ) -> None:
         self._churches = churches
         self._operators = operators
         self._passwords = passwords
+        self._audit = audit
 
     async def execute(
         self,
         *,
         actor_role: UserRole,
+        actor_id: UUID,
         name: str,
         surname: str,
         email: str,
@@ -66,7 +71,7 @@ class CreateOperator:
             raise DomainException("Iglesia fuera del distrito seleccionado")
 
         password_hash = self._passwords.hash(password)
-        return await self._operators.create_operator(
+        account = await self._operators.create_operator(
             name=name,
             surname=surname,
             email=email,
@@ -75,3 +80,22 @@ class CreateOperator:
             district_id=district_id,
             church_id=church_id,
         )
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor_id,
+                resource="USUARIO",
+                resource_id=account.id,
+                action="CREADO",
+                church_id=church_id,
+                new_values={
+                    "role": role.value,
+                    "name": name,
+                    "surname": surname,
+                    "email": email,
+                    "district_id": str(district_id),
+                    "church_id": str(church_id),
+                    "active": True,
+                },
+            )
+        )
+        return account

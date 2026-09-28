@@ -104,6 +104,7 @@ usuarios 1 --- N usuarios como líder asignado a hermanos
 usuarios (HERMANO) 1 --- N asignaciones_hermano
 usuarios (LIDER) 1 --- N asignaciones_hermano
 visitas 1 --- N visita_historial
+usuarios e iglesias 1 --- N auditoria (actor y alcance territorial)
 ```
 
 Los únicos estados de visita son `PROGRAMADA`, `COMPLETADA` y `CANCELADA`.
@@ -261,15 +262,22 @@ CREATE TABLE tokens_recuperacion (
 
 CREATE TABLE auditoria (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+    usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
     recurso VARCHAR(50) NOT NULL,
     recurso_id UUID NOT NULL,
     accion VARCHAR(50) NOT NULL,
+    iglesia_id UUID REFERENCES iglesias(id) ON DELETE RESTRICT,
     datos_anteriores JSONB,
     datos_nuevos JSONB,
     motivo TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX ix_auditoria_iglesia_fecha
+    ON auditoria (iglesia_id, created_at);
+
+CREATE INDEX ix_auditoria_recurso
+    ON auditoria (recurso, recurso_id, created_at);
 ```
 
 Las reglas de rol, pertenencia a la misma iglesia, distrito coincidente,
@@ -287,8 +295,11 @@ se sobrescribe su historial.
 Las visitas nuevas siempre inician `PROGRAMADA`. El índice parcial evita
 duplicar hermano y fecha mientras la visita siga programada. Cada cambio añade
 un snapshot JSONB al historial; PostgreSQL impide borrar visitas físicamente o
-modificar/eliminar eventos de auditoría. `tzdata` suministra `America/Bogota` en
-plataformas, como Windows, que no incluyen la base IANA del sistema.
+modificar/eliminar eventos de auditoría. `auditoria` conserva el actor y un
+snapshot `iglesia_id` para filtrar el alcance aunque cambie la asignación actual;
+un trigger PostgreSQL rechaza `UPDATE` y `DELETE`. `tzdata` suministra
+`America/Bogota` en plataformas, como Windows, que no incluyen la base IANA del
+sistema.
 
 ## Historias de usuario y aceptación
 
@@ -498,10 +509,11 @@ Característica: Gestión del ciclo de vida de una visita
         Y la visita permanece CANCELADA
 ```
 
-### HU-05: Auditoría de visitas
+### HU-05: Auditoría de visitas y gestión
 
-**Como** `ADMIN` o `PASTOR`, **quiero** consultar el historial de una visita,
-**para** verificar quién realizó cada cambio.
+**Como** `ADMIN` o `PASTOR`, **quiero** consultar el historial de visitas y los
+cambios de gestión, **para** verificar quién realizó cada operación dentro de
+mi alcance.
 
 ```gherkin
 Característica: Historial de auditoría
@@ -527,6 +539,17 @@ Característica: Historial de auditoría
         Dado un ADMIN autenticado
         Cuando consulta la auditoría de asignaciones y desactivaciones
         Entonces puede consultar eventos de cualquier distrito e iglesia
+
+    Escenario: Consultar cambios de gestión sin exponer credenciales
+        Dado eventos de creación, modificación, reasignación y desactivación
+        Cuando ADMIN o PASTOR consulta la auditoría dentro de su alcance
+        Entonces observa actor, recurso, acción, valores anteriores y nuevos
+        Y no se exponen passwords, hashes ni tokens
+
+    Escenario: Denegar auditoría global a un líder
+        Dado un LIDER autenticado
+        Cuando consulta la auditoría
+        Entonces la operación es rechazada
 ```
 
 ### HU-06: Notificaciones de visita
@@ -675,7 +698,7 @@ Prefijo: `/api/v1`.
 | `PATCH /visitas/{id}` | Según rol y estado |
 | `DELETE /visitas/{id}` | ADMIN, PASTOR o LIDER asignado; cancela con motivo, sin borrar |
 | `GET /visitas/{id}/history` | ADMIN o PASTOR en alcance |
-| `GET /audit` | ADMIN global o PASTOR dentro de su iglesia |
+| `GET /audit?offset=0&limit=100` | ADMIN global o PASTOR dentro de su iglesia; paginado, `limit` máximo 500 |
 | `GET /reports/ranking` | ADMIN global o PASTOR de su iglesia |
 
 Todos los endpoints protegidos deben verificar autenticación, rol, iglesia,
@@ -783,7 +806,11 @@ migraciones impiden asignar líderes de otro rol o iglesia. El esquema está
 aplicado en PostgreSQL 17 local. HU-04 implementa el ciclo de visitas, alcance
 por rol, rechazo de duplicados, validación horaria en `America/Bogota` e historial
 append-only; PostgreSQL protege asignaciones, unicidad y borrado físico. GitHub
-Actions usa PostgreSQL 17 efímero para migraciones e integración. Siguen
-pendientes HU-05 (auditoría global), HU-06 a HU-09, recuperación de cuenta, CRUD
-administrativo de distritos e iglesias y el frontend. Se mantiene
-`INSTRUCTIOS.md` como contrato funcional y se implementa en iteraciones TDD.
+Actions usa PostgreSQL 17 efímero para migraciones e integración. HU-05
+implementa auditoría append-only de creación, modificación, reasignación,
+asignación de pastor principal y desactivación; `GET /api/v1/audit` aplica
+scope global ADMIN o scope de iglesia PASTOR con paginación, y PostgreSQL
+rechaza modificaciones y borrados directos. HU-06 a HU-09, recuperación de
+cuenta, CRUD administrativo de distritos e iglesias y frontend siguen
+pendientes. Se mantiene `INSTRUCTIOS.md` como contrato funcional y se implementa
+en iteraciones TDD.

@@ -125,6 +125,7 @@ async def _create_operator(
     try:
         account = await use_case.execute(
             actor_role=actor.role,
+            actor_id=actor.id,
             name=request.name,
             surname=request.surname,
             email=request.email,

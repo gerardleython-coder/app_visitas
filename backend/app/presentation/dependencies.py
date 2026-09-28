@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.authenticate_user import AuthenticateUser
+from app.application.audit import ListAudit
 from app.application.manage_brothers import ManageBrothers
 from app.application.create_operator import CreateOperator
 from app.application.manage_operators import OperatorManagement
@@ -14,6 +15,7 @@ from app.application.rotate_refresh_token import RotateRefreshToken
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import UnauthorizedException
 from app.infrastructure.access_token_verifier import AccessTokenVerifier
+from app.infrastructure.audit_repository import SQLAlchemyAuditRepository
 from app.infrastructure.brother_repository import SQLAlchemyBrotherRepository
 from app.infrastructure.database import create_database_engine, create_session_factory
 from app.infrastructure.organization_repository import (
@@ -87,6 +89,7 @@ async def get_create_operator(
         churches=SQLAlchemyChurchRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
         passwords=Argon2PasswordService(),
+        audit=SQLAlchemyAuditRepository(session),
     )
 
 
@@ -96,6 +99,7 @@ async def get_operator_management(
     return OperatorManagement(
         operators=SQLAlchemyOperatorRepository(session),
         churches=SQLAlchemyChurchRepository(session),
+        audit=SQLAlchemyAuditRepository(session),
     )
 
 
@@ -163,6 +167,7 @@ async def get_brother_management(
         brothers=SQLAlchemyBrotherRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
         churches=SQLAlchemyChurchRepository(session),
+        audit=SQLAlchemyAuditRepository(session),
     )
 
 
@@ -172,5 +177,14 @@ async def get_visit_management(
     return ManageVisits(
         visits=SQLAlchemyVisitRepository(session),
         brothers=SQLAlchemyBrotherRepository(session),
+        operators=SQLAlchemyOperatorRepository(session),
+    )
+
+
+async def get_audit_query(
+    session: AsyncSession = Depends(get_db_session),
+) -> ListAudit:
+    return ListAudit(
+        audit=SQLAlchemyAuditRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
     )

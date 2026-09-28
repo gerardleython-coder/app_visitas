@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.application.create_operator import CreateOperator
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import DomainException, ForbiddenException
 from app.domain.organization import Church
@@ -52,6 +53,14 @@ class FakePasswordHasher:
         return "hashed-test-value"
 
 
+@dataclass
+class FakeAuditRepository:
+    records: list[AuditRecord] = field(default_factory=list)
+
+    async def record_event(self, record: AuditRecord) -> None:
+        self.records.append(record)
+
+
 @pytest.mark.parametrize("role", [UserRole.PASTOR, UserRole.LIDER])
 async def test_admin_creates_operator_in_church_selected_from_district(role: UserRole) -> None:
     district_id = uuid4()
@@ -59,14 +68,17 @@ async def test_admin_creates_operator_in_church_selected_from_district(role: Use
     church = Church(id=church_id, district_id=district_id)
     operators = FakeOperatorRepository()
     passwords = FakePasswordHasher()
+    audit = FakeAuditRepository()
     use_case = CreateOperator(
         churches=FakeChurchRepository(church),
         operators=operators,
         passwords=passwords,
+        audit=audit,
     )
 
     account = await use_case.execute(
         actor_role=UserRole.ADMIN,
+        actor_id=uuid4(),
         name="Ana",
         surname="Gomez",
         email="ana@example.test",
@@ -81,6 +93,10 @@ async def test_admin_creates_operator_in_church_selected_from_district(role: Use
     assert account.password_hash == "hashed-test-value"
     assert passwords.hash_calls == 1
     assert operators.accounts == [account]
+    assert audit.records[0].resource_id == account.id
+    assert audit.records[0].action == "CREADO"
+    assert audit.records[0].new_values["role"] == role.value
+    assert "password" not in audit.records[0].new_values
 
 
 async def test_rejects_church_from_another_district_before_hashing_or_persisting() -> None:
@@ -88,15 +104,18 @@ async def test_rejects_church_from_another_district_before_hashing_or_persisting
     church = Church(id=uuid4(), district_id=uuid4())
     operators = FakeOperatorRepository()
     passwords = FakePasswordHasher()
+    audit = FakeAuditRepository()
     use_case = CreateOperator(
         churches=FakeChurchRepository(church),
         operators=operators,
         passwords=passwords,
+        audit=audit,
     )
 
     with pytest.raises(DomainException, match="Iglesia fuera del distrito"):
         await use_case.execute(
             actor_role=UserRole.ADMIN,
+            actor_id=uuid4(),
             name="Ana",
             surname="Gomez",
             email="ana@example.test",
@@ -108,6 +127,7 @@ async def test_rejects_church_from_another_district_before_hashing_or_persisting
 
     assert passwords.hash_calls == 0
     assert operators.accounts == []
+    assert audit.records == []
 
 
 async def test_rejects_inactive_church_before_hashing_or_persisting() -> None:
@@ -115,15 +135,18 @@ async def test_rejects_inactive_church_before_hashing_or_persisting() -> None:
     church = Church(id=uuid4(), district_id=district_id, active=False)
     operators = FakeOperatorRepository()
     passwords = FakePasswordHasher()
+    audit = FakeAuditRepository()
     use_case = CreateOperator(
         churches=FakeChurchRepository(church),
         operators=operators,
         passwords=passwords,
+        audit=audit,
     )
 
     with pytest.raises(DomainException, match="Iglesia inactiva"):
         await use_case.execute(
             actor_role=UserRole.ADMIN,
+            actor_id=uuid4(),
             name="Ana",
             surname="Gomez",
             email="ana@example.test",
@@ -135,6 +158,7 @@ async def test_rejects_inactive_church_before_hashing_or_persisting() -> None:
 
     assert passwords.hash_calls == 0
     assert operators.accounts == []
+    assert audit.records == []
 
 
 async def test_non_admin_cannot_create_operator() -> None:
@@ -142,15 +166,18 @@ async def test_non_admin_cannot_create_operator() -> None:
     church_id = uuid4()
     operators = FakeOperatorRepository()
     passwords = FakePasswordHasher()
+    audit = FakeAuditRepository()
     use_case = CreateOperator(
         churches=FakeChurchRepository(Church(id=church_id, district_id=district_id)),
         operators=operators,
         passwords=passwords,
+        audit=audit,
     )
 
     with pytest.raises(ForbiddenException):
         await use_case.execute(
             actor_role=UserRole.PASTOR,
+            actor_id=uuid4(),
             name="Ana",
             surname="Gomez",
             email="ana@example.test",
@@ -162,3 +189,4 @@ async def test_non_admin_cannot_create_operator() -> None:
 
     assert passwords.hash_calls == 0
     assert operators.accounts == []
+    assert audit.records == []

@@ -306,3 +306,34 @@ class VisitHistoryModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class AuditModel(Base):
+    __tablename__ = "auditoria"
+    __table_args__ = (
+        Index("ix_auditoria_iglesia_fecha", "iglesia_id", "created_at"),
+        Index("ix_auditoria_recurso", "recurso", "recurso_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    actor_id: Mapped[UUID] = mapped_column(
+        "usuario_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    resource: Mapped[str] = mapped_column("recurso", String(50), nullable=False)
+    resource_id: Mapped[UUID] = mapped_column("recurso_id", Uuid(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column("accion", String(50), nullable=False)
+    church_id: Mapped[UUID | None] = mapped_column(
+        "iglesia_id", Uuid(as_uuid=True), ForeignKey("iglesias.id", ondelete="RESTRICT")
+    )
+    previous_values: Mapped[dict[str, object] | None] = mapped_column(
+        "datos_anteriores", JSON().with_variant(JSONB(), "postgresql")
+    )
+    new_values: Mapped[dict[str, object] | None] = mapped_column(
+        "datos_nuevos", JSON().with_variant(JSONB(), "postgresql")
+    )
+    reason: Mapped[str | None] = mapped_column("motivo", Text)
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

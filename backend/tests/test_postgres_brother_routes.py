@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.domain.authentication import UserRole
 from app.infrastructure.database import create_database_engine
-from app.infrastructure.models import ChurchModel, DistrictModel, UserModel
+from app.infrastructure.models import AuditModel, ChurchModel, DistrictModel, UserModel
 from app.infrastructure.password_service import Argon2PasswordService
 from app.main import app
 
@@ -172,6 +172,29 @@ def brother_scenario(monkeypatch: pytest.MonkeyPatch) -> BrotherScenario:
                             "asignaciones_hermano"
                         )
                     )
+                    has_audit = await connection.run_sync(
+                        lambda sync_connection: inspect(sync_connection).has_table("auditoria")
+                    )
+                    actor_ids = [
+                        scenario.admin_id,
+                        scenario.pastor_id,
+                        scenario.leader_id,
+                        scenario.other_leader_id,
+                        scenario.foreign_leader_id,
+                    ]
+                    if has_audit:
+                        await connection.execute(
+                            text("ALTER TABLE auditoria DISABLE TRIGGER trg_proteger_auditoria")
+                        )
+                        await connection.execute(
+                            delete(AuditModel).where(
+                                AuditModel.actor_id.in_(actor_ids)
+                                | AuditModel.resource_id.in_(scenario.brother_ids)
+                            )
+                        )
+                        await connection.execute(
+                            text("ALTER TABLE auditoria ENABLE TRIGGER trg_proteger_auditoria")
+                        )
                     if has_assignments:
                         await connection.execute(
                             text(

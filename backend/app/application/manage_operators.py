@@ -1,6 +1,8 @@
 from typing import Protocol
 from uuid import UUID
 
+from app.application.audit import AuditRepository
+from app.domain.audit import AuditRecord
 from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import (
     ConflictException,
@@ -53,9 +55,15 @@ class ChurchRepository(Protocol):
 class OperatorManagement:
     _editable_fields = frozenset({"name", "surname", "email", "phone", "address"})
 
-    def __init__(self, operators: OperatorRepository, churches: ChurchRepository) -> None:
+    def __init__(
+        self,
+        operators: OperatorRepository,
+        churches: ChurchRepository,
+        audit: AuditRepository,
+    ) -> None:
         self._operators = operators
         self._churches = churches
+        self._audit = audit
 
     async def list_operators(
         self,
@@ -99,6 +107,17 @@ class OperatorManagement:
         updated = await self._operators.update_operator(operator_id, changes)
         if updated is None:
             raise NotFoundException("Operador no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="USUARIO",
+                resource_id=updated.id,
+                action="MODIFICADO",
+                church_id=updated.church_id,
+                previous_values=self._operator_values(operator),
+                new_values=self._operator_values(updated),
+            )
+        )
         return updated
 
     async def deactivate_operator(
@@ -132,6 +151,17 @@ class OperatorManagement:
         deactivated = await self._operators.deactivate_operator(operator_id)
         if deactivated is None:
             raise NotFoundException("Operador no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="USUARIO",
+                resource_id=deactivated.id,
+                action="DESACTIVADO",
+                church_id=deactivated.church_id,
+                previous_values=self._operator_values(operator),
+                new_values=self._operator_values(deactivated),
+            )
+        )
         return deactivated
 
     async def set_primary_pastor(
@@ -149,6 +179,12 @@ class OperatorManagement:
         if not await self._operators.lock_church(church_id):
             raise NotFoundException("Iglesia no encontrada")
 
+        pastors = await self._operators.list_operators(UserRole.PASTOR, church_id=church_id)
+        previous_primary = next(
+            (pastor for pastor in pastors if pastor.is_primary_pastor and pastor.active),
+            None,
+        )
+
         pastor = await self._operators.get_operator(pastor_id)
         if (
             pastor is None
@@ -161,6 +197,19 @@ class OperatorManagement:
         primary = await self._operators.set_primary_pastor(church_id, pastor_id)
         if primary is None:
             raise NotFoundException("Pastor activo de la iglesia no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="IGLESIA",
+                resource_id=church_id,
+                action="PASTOR_PRINCIPAL_ASIGNADO",
+                church_id=church_id,
+                previous_values=(
+                    {"pastor_id": str(previous_primary.id)} if previous_primary else None
+                ),
+                new_values={"pastor_id": str(primary.id)},
+            )
+        )
         return primary
 
     async def _get_authorized_operator(
@@ -184,3 +233,18 @@ class OperatorManagement:
         if actor_profile is None or actor_profile.church_id != operator.church_id:
             raise NotFoundException("Operador no encontrado")
         return operator
+
+    @staticmethod
+    def _operator_values(operator: OperatorProfile) -> dict[str, object]:
+        return {
+            "name": operator.name,
+            "surname": operator.surname,
+            "email": operator.email,
+            "role": operator.role.value,
+            "active": operator.active,
+            "district_id": str(operator.district_id) if operator.district_id else None,
+            "church_id": str(operator.church_id) if operator.church_id else None,
+            "phone": operator.phone,
+            "address": operator.address,
+            "is_primary_pastor": operator.is_primary_pastor,
+        }

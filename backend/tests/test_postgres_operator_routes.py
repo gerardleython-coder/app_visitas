@@ -5,13 +5,14 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.domain.authentication import UserRole
 from app.infrastructure.database import create_database_engine
 from app.infrastructure.models import (
+    AuditModel,
     ChurchModel,
     DistrictModel,
     RefreshSessionModel,
@@ -111,6 +112,18 @@ def test_admin_operator_routes_persist_assignment_and_enforce_role_scope(
             async with engine.begin() as connection:
                 user_ids = select(UserModel.id).where(
                     UserModel.email.like(f"{email_prefix}%")
+                )
+                await connection.execute(
+                    text("ALTER TABLE auditoria DISABLE TRIGGER trg_proteger_auditoria")
+                )
+                await connection.execute(
+                    delete(AuditModel).where(
+                        AuditModel.actor_id.in_(user_ids)
+                        | AuditModel.resource_id.in_(user_ids)
+                    )
+                )
+                await connection.execute(
+                    text("ALTER TABLE auditoria ENABLE TRIGGER trg_proteger_auditoria")
                 )
                 await connection.execute(
                     delete(RefreshSessionModel).where(
