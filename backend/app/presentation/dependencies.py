@@ -12,6 +12,7 @@ from app.application.create_operator import CreateOperator
 from app.application.password_recovery import RequestPasswordReset, ResetPassword
 from app.application.manage_operators import OperatorManagement
 from app.application.manage_visits import ManageVisits
+from app.application.manage_territories import ManageTerritories
 from app.application.logout_user import LogoutUser
 from app.application.leader_ranking import GetLeaderRanking
 from app.application.rotate_refresh_token import RotateRefreshToken
@@ -33,6 +34,7 @@ from app.infrastructure.refresh_session_repository import SQLAlchemyRefreshSessi
 from app.infrastructure.security_settings import SecuritySettings
 from app.infrastructure.session_issuer import SQLAlchemySessionIssuer
 from app.infrastructure.user_repository import SQLAlchemyUserRepository
+from app.infrastructure.territory_repository import SQLAlchemyTerritoryRepository
 from app.infrastructure.visit_repository import SQLAlchemyVisitRepository
 from app.infrastructure.visit_notification_dispatcher import VisitNotificationDispatcher
 from app.infrastructure.visit_notification_queue import SQLAlchemyVisitNotificationQueue
@@ -238,6 +240,15 @@ async def get_leader_ranking(
     return GetLeaderRanking(
         rankings=SQLAlchemyLeaderRankingRepository(session),
         operators=SQLAlchemyOperatorRepository(session),
+    )
+
+
+async def get_territory_management(
+    session: AsyncSession = Depends(get_db_session),
+) -> ManageTerritories:
+    return ManageTerritories(
+        territories=SQLAlchemyTerritoryRepository(session),
+        audit=SQLAlchemyAuditRepository(session),
     )
 
 

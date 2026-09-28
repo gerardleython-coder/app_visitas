@@ -137,6 +137,7 @@ CREATE TABLE iglesias (
     distrito_id UUID NOT NULL REFERENCES distritos(id) ON DELETE RESTRICT,
     nombre VARCHAR(150) NOT NULL,
     direccion TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (distrito_id, nombre)
 );
@@ -674,6 +675,18 @@ Característica: Seguridad de sesión
         Entonces la operación es rechazada con un error genérico
         Y la contraseña y las sesiones no cambian
 
+    Escenario: Cambiar contraseña con sesión autenticada
+        Dado un usuario operativo activo con su contraseña actual
+        Cuando cambia la contraseña autenticado
+        Entonces la contraseña se almacena con Argon2
+        Y todas sus sesiones refresh quedan revocadas
+
+    Escenario: Rechazar cambio con contraseña actual incorrecta
+        Dado un usuario operativo autenticado
+        Cuando presenta una contraseña actual incorrecta
+        Entonces recibe un error genérico de autenticación
+        Y la contraseña y sesiones no cambian
+
     Escenario: Impedir reutilización de refresh token
         Dado un refresh token que ya fue utilizado o revocado
         Cuando se intenta renovar la sesión con ese token
@@ -726,15 +739,16 @@ Prefijo: `/api/v1`.
 | `POST /auth/logout` | Revocar sesión y refresh token |
 | `POST /auth/password/forgot` | 202 neutral; envía token de recuperación solo a cuentas operativas existentes |
 | `POST /auth/password/reset` | Consume token de un uso; actualiza password y revoca todas las sesiones |
+| `POST /auth/password/change` | ADMIN, PASTOR o LIDER autenticado; verifica contraseña actual y revoca refresh |
 | `GET /admin/distritos` | ADMIN |
 | `POST /admin/distritos` | ADMIN |
-| `PATCH /admin/distritos/{id}` | ADMIN |
-| `DELETE /admin/distritos/{id}` | ADMIN, si no tiene dependencias activas |
+| `PATCH /admin/distritos/{id}` | ADMIN, actualiza nombre |
+| `DELETE /admin/distritos/{id}` | ADMIN, solo si no tiene iglesias asociadas |
 | `GET /admin/iglesias` | ADMIN |
 | `POST /admin/iglesias` | ADMIN |
-| `PATCH /admin/iglesias/{id}` | ADMIN |
+| `PATCH /admin/iglesias/{id}` | ADMIN, actualiza nombre/dirección; distrito inmutable |
 | `PATCH /admin/iglesias/{id}/pastor-principal` | ADMIN, definir un único pastor principal |
-| `DELETE /admin/iglesias/{id}` | ADMIN, si no tiene dependencias activas |
+| `DELETE /admin/iglesias/{id}` | ADMIN, desactivación lógica; requiere cero usuarios activos |
 | `GET /users/pastores` | ADMIN |
 | `POST /users/pastores` | ADMIN, crea y asigna |
 | `PATCH /users/pastores/{id}` | ADMIN |
@@ -881,6 +895,8 @@ aleatorio de 30 minutos almacenado como SHA-256, respuesta anti-enumeración,
 consumo de un uso y revocación de refresh tokens al cambiar la contraseña.
 HU-09 verifica desactivación lógica de hermanos y operadores, historial de
 visitas y asignaciones preservado, bloqueo de nuevas visitas y rechazo de login
-para cuentas inactivas. CRUD administrativo de distritos e iglesias y frontend
-siguen pendientes. Se mantiene `INSTRUCTIONS.md` como contrato funcional y se
-implementa en iteraciones TDD.
+para cuentas inactivas. El CRUD territorial ADMIN protege dependencias con
+conflictos y desactiva iglesias sin borrar historia; el cambio autenticado de
+contraseña verifica el valor actual y revoca sesiones refresh. El frontend
+Flutter sigue pendiente. Se mantiene `INSTRUCTIONS.md` como contrato funcional y
+se implementa en iteraciones TDD.

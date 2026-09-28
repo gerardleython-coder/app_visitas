@@ -146,6 +146,10 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
   responde igual para cuentas existentes y desconocidas; el reset exitoso
   invalida todas las sesiones refresh de la cuenta.
 - Debe existir recuperación y cambio de contraseña para usuarios con acceso.
+- `DELETE /admin/distritos/{id}` elimina el distrito únicamente cuando no tiene
+  iglesias asociadas. `DELETE /admin/iglesias/{id}` es desactivación lógica y
+  solo se permite cuando no quedan usuarios activos; se conservan las relaciones
+  históricas.
 - Los secretos se cargan desde variables de entorno y nunca se versionan.
 - No incluir secretos reales, tokens ni credenciales en documentación,
   fixtures o mensajes de error.
@@ -158,7 +162,12 @@ La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 - `POST /auth/password/forgot` devuelve `202` sin revelar si el email existe;
   `POST /auth/password/reset` consume un token único y devuelve `204` o un error
   genérico `400` si el token no es válido.
-- CRUD de `/admin/distritos` y `/admin/iglesias`, solo `ADMIN`.
+- `POST /auth/password/change` requiere sesión operativa, `current_password` y
+  `new_password`; verifica la contraseña actual, guarda Argon2 y revoca todos
+  los refresh tokens del usuario.
+- CRUD de `/admin/distritos` y `/admin/iglesias`, solo `ADMIN`; el distrito solo
+  se elimina sin iglesias y la iglesia se desactiva lógicamente sin usuarios
+  activos.
 - CRUD y asignación de `/users/pastores`, solo `ADMIN`.
 - Creación y asignación de `/users/lideres`, solo `ADMIN`; `PASTOR` puede
   consultar y editar sus datos sin cambiar el rol.
@@ -172,6 +181,11 @@ La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 
 Todos los endpoints protegidos deben comprobar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
+
+La administración territorial crea distritos con `name` y edita ese nombre.
+Las iglesias se crean con `district_id`, `name` y `address`; su edición no mueve
+la iglesia de distrito. El distrito se elimina solo si no tiene iglesias; la
+iglesia se desactiva lógicamente solo cuando no tiene usuarios activos.
 
 ## 7. Historias de usuario y criterios de aceptación
 

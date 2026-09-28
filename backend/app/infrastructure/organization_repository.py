@@ -20,7 +20,13 @@ class SQLAlchemyChurchRepository:
         if church is None:
             return None
 
-        return Church(id=church.id, district_id=church.district_id, active=church.active)
+        return Church(
+            id=church.id,
+            district_id=church.district_id,
+            active=church.active,
+            name=church.name,
+            address=church.address,
+        )
 
 
 class SQLAlchemyOperatorRepository:
