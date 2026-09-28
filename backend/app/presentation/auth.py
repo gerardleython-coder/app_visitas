@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.application.authenticate_user import AuthenticateUser
+from app.application.change_password import ChangePassword
 from app.application.logout_user import LogoutUser
 from app.application.password_recovery import (
     PasswordResetEmailSender,
@@ -11,15 +12,18 @@ from app.application.password_recovery import (
     ResetPassword,
 )
 from app.application.rotate_refresh_token import RotateRefreshToken
+from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import UnauthorizedException
 from app.domain.password_recovery import PasswordResetEmail
 from app.presentation.dependencies import (
     get_authenticate_user,
+    get_change_password,
     get_logout_user,
     get_password_reset_email_sender,
     get_request_password_reset,
     get_reset_password,
     get_rotate_refresh_token,
+    require_roles,
 )
 
 
@@ -43,6 +47,13 @@ class ResetPasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     token: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1, max_length=1024)
     new_password: str = Field(min_length=1, max_length=1024)
 
 
@@ -148,5 +159,23 @@ async def reset_password(
         raise HTTPException(
             status_code=400,
             detail={"code": "invalid_token", "message": "Token inválido o expirado"},
+        ) from error
+    return Response(status_code=204)
+
+
+@router.post("/auth/password/change", status_code=204, response_class=Response)
+async def change_password(
+    request: ChangePasswordRequest,
+    actor: UserAccount = Depends(
+        require_roles(UserRole.ADMIN, UserRole.PASTOR, UserRole.LIDER)
+    ),
+    change: ChangePassword = Depends(get_change_password),
+) -> Response:
+    try:
+        await change.execute(actor, request.current_password, request.new_password)
+    except UnauthorizedException as error:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Credenciales inválidas"},
         ) from error
     return Response(status_code=204)

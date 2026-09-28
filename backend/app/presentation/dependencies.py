@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.authenticate_user import AuthenticateUser
 from app.application.audit import ListAudit
+from app.application.change_password import ChangePassword
 from app.application.manage_brothers import ManageBrothers
 from app.application.create_operator import CreateOperator
 from app.application.password_recovery import RequestPasswordReset, ResetPassword
@@ -112,6 +113,16 @@ async def get_logout_user(
     session: AsyncSession = Depends(get_db_session),
 ) -> LogoutUser:
     return LogoutUser(SQLAlchemyRefreshSessionRepository(session))
+
+
+async def get_change_password(
+    session: AsyncSession = Depends(get_db_session),
+) -> ChangePassword:
+    return ChangePassword(
+        users=SQLAlchemyUserRepository(session),
+        passwords=Argon2PasswordService(),
+        sessions=SQLAlchemyRefreshSessionRepository(session),
+    )
 
 
 async def get_create_operator(

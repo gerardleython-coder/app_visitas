@@ -178,6 +178,47 @@ def test_postgres_password_recovery_is_neutral_one_time_and_revokes_sessions(
             )
             assert old_login.status_code == 401
             assert new_login.status_code == 200
+
+            new_access = new_login.json()["access_token"]
+            new_refresh = new_login.json()["refresh_token"]
+            wrong_current_password = client.post(
+                "/api/v1/auth/password/change",
+                headers={"Authorization": f"Bearer {new_access}"},
+                json={
+                    "current_password": original_password,
+                    "new_password": token_urlsafe(24),
+                },
+            )
+            assert wrong_current_password.status_code == 401
+            _, unchanged_session, _ = asyncio.run(
+                inspect_recovery_and_session(reset_token, new_refresh)
+            )
+            assert unchanged_session is not None
+            assert unchanged_session.revoked_at is None
+
+            changed_password_value = token_urlsafe(24)
+            change_password = client.post(
+                "/api/v1/auth/password/change",
+                headers={"Authorization": f"Bearer {new_access}"},
+                json={
+                    "current_password": new_password,
+                    "new_password": changed_password_value,
+                },
+            )
+            assert change_password.status_code == 204
+            _, revoked_new_session, _ = asyncio.run(
+                inspect_recovery_and_session(reset_token, new_refresh)
+            )
+            assert revoked_new_session is not None
+            assert revoked_new_session.revoked_at is not None
+            assert client.post(
+                "/api/v1/auth/login",
+                json={"email": email, "password": new_password},
+            ).status_code == 401
+            assert client.post(
+                "/api/v1/auth/login",
+                json={"email": email, "password": changed_password_value},
+            ).status_code == 200
     finally:
         app.dependency_overrides.pop(get_password_reset_email_sender, None)
         asyncio.run(cleanup())
