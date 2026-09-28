@@ -50,6 +50,36 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "12e39403107c:base", sql=True)
+    command.downgrade(downgrade_config, "3ec9e67695c7:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
+    assert "DROP TRIGGER IF EXISTS trg_iglesia_con_operadores_activos ON iglesias" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS impedir_desactivar_iglesia_con_operadores()" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP TRIGGER IF EXISTS trg_usuario_iglesia_activa ON usuarios" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS validar_usuario_iglesia_activa()" in (
+        downgrade_output.getvalue()
+    )
+
+
+def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() -> None:
+    output = StringIO()
+    config = Config(
+        str(Path(__file__).resolve().parents[1] / "alembic.ini"),
+        output_buffer=output,
+    )
+    config.set_main_option(
+        "sqlalchemy.url",
+        "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
+    )
+
+    command.upgrade(config, "head", sql=True)
+    generated_sql = output.getvalue()
+
+    assert "CREATE FUNCTION validar_usuario_iglesia_activa()" in generated_sql
+    assert "CREATE TRIGGER trg_usuario_iglesia_activa" in generated_sql

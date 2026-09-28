@@ -703,9 +703,12 @@ app-pastoral/
 ## Estado del proyecto
 
 El backend tiene el endpoint de salud, el caso de uso inicial de autenticación
-y modelos/repositorio SQLAlchemy para distritos, iglesias y usuarios. Alembic
-incluye la migración inicial y se valida con pruebas SQLite y DDL PostgreSQL
-offline. GitHub Actions valida lint y cobertura. La API de autenticación, la
-integración contra PostgreSQL local, el resto de entidades y el frontend siguen
-pendientes y se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md`
-como contrato funcional.
+y el primer caso de uso HU-02 para crear pastores y líderes con asignación
+territorial. Los repositorios SQLAlchemy persisten distritos, iglesias y
+usuarios; las migraciones validan en PostgreSQL que la iglesia pertenezca al
+distrito asignado, que esté activa para asignaciones y que no se desactive
+mientras conserve operadores activos. Las migraciones están aplicadas y
+verificadas en PostgreSQL 17 local. Siguen pendientes los endpoints HTTP de
+autenticación y administración, las demás historias de usuario y el frontend.
+Se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md` como contrato
+funcional.

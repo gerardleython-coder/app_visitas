@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     String,
     Text,
@@ -35,7 +36,10 @@ class DistrictModel(Base):
 
 class ChurchModel(Base):
     __tablename__ = "iglesias"
-    __table_args__ = (UniqueConstraint("distrito_id", "nombre", name="uq_iglesia_distrito_nombre"),)
+    __table_args__ = (
+        UniqueConstraint("distrito_id", "nombre", name="uq_iglesia_distrito_nombre"),
+        UniqueConstraint("id", "distrito_id", name="uq_iglesia_id_distrito"),
+    )
 
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
@@ -45,6 +49,9 @@ class ChurchModel(Base):
     )
     name: Mapped[str] = mapped_column("nombre", String(150), nullable=False)
     address: Mapped[str | None] = mapped_column("direccion", Text)
+    active: Mapped[bool] = mapped_column(
+        "activo", Boolean, nullable=False, default=True, server_default=text("TRUE")
+    )
     created_at: Mapped[datetime] = mapped_column(
         "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -53,6 +60,12 @@ class ChurchModel(Base):
 class UserModel(Base):
     __tablename__ = "usuarios"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["iglesia_id", "distrito_id"],
+            ["iglesias.id", "iglesias.distrito_id"],
+            ondelete="RESTRICT",
+            name="fk_usuario_iglesia_distrito",
+        ),
         CheckConstraint(
             "es_pastor_principal = FALSE OR rol = 'PASTOR'",
             name="ck_usuario_pastor_principal_rol",
