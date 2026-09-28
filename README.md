@@ -704,12 +704,13 @@ app-pastoral/
 
 El backend tiene las rutas `POST /api/v1/auth/login` y
 `POST /api/v1/auth/refresh`, con Argon2id, access JWT de 15 minutos, refresh
-hasheado y rotación de una sola vez; la reutilización revoca la familia. El caso
-de uso HU-02 crea pastores y líderes con asignación territorial. Las migraciones
-validan en PostgreSQL que la iglesia pertenezca al distrito, esté activa y no
-se desactive mientras conserve operadores activos. El esquema está aplicado y
-verificado en PostgreSQL 17 local; GitHub Actions usa PostgreSQL 17 efímero para
-migraciones e integración de login, rotación y logout. Siguen pendientes la
-recuperación de cuenta, endpoints administrativos, las demás historias y el
-frontend. Se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md`
-como contrato funcional.
+hasheado y rotación de una sola vez; la reutilización revoca la familia. HU-02
+incluye creación, consulta, edición y desactivación lógica de pastores y líderes,
+con autorización por rol y alcance de iglesia. ADMIN puede asignar el pastor
+principal; la aplicación y un trigger PostgreSQL impiden desactivar al único
+principal activo sin reemplazo. Las migraciones validan la relación territorial
+y el estado de las iglesias. El esquema está aplicado en PostgreSQL 17 local;
+GitHub Actions usa PostgreSQL 17 efímero para migraciones e integración. Siguen
+pendientes recuperación de cuenta, CRUD administrativo de distritos e iglesias,
+las demás historias y el frontend. Se mantiene `INSTRUCTIOS.md` como contrato
+funcional y se implementa en iteraciones TDD.

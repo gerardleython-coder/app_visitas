@@ -94,9 +94,15 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "cd3031a1e81a:base", sql=True)
+    command.downgrade(downgrade_config, "c4d98e16f731:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
+    assert "DROP TRIGGER IF EXISTS trg_proteger_pastor_principal_unico ON usuarios" in (
+        downgrade_output.getvalue()
+    )
+    assert "DROP FUNCTION IF EXISTS impedir_desactivar_pastor_principal_unico()" in (
+        downgrade_output.getvalue()
+    )
     assert "DROP INDEX ix_sesiones_refresh_family_id" in downgrade_output.getvalue()
     assert "DROP TRIGGER IF EXISTS trg_iglesia_con_operadores_activos ON iglesias" in (
         downgrade_output.getvalue()
@@ -129,3 +135,5 @@ def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() 
 
     assert "CREATE FUNCTION validar_usuario_iglesia_activa()" in generated_sql
     assert "CREATE TRIGGER trg_usuario_iglesia_activa" in generated_sql
+    assert "CREATE FUNCTION impedir_desactivar_pastor_principal_unico()" in generated_sql
+    assert "CREATE TRIGGER trg_proteger_pastor_principal_unico" in generated_sql

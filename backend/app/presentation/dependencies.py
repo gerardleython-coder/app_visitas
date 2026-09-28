@@ -1,17 +1,29 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.authenticate_user import AuthenticateUser
+from app.application.create_operator import CreateOperator
+from app.application.manage_operators import OperatorManagement
 from app.application.logout_user import LogoutUser
 from app.application.rotate_refresh_token import RotateRefreshToken
+from app.domain.authentication import UserAccount, UserRole
+from app.domain.errors import UnauthorizedException
+from app.infrastructure.access_token_verifier import AccessTokenVerifier
 from app.infrastructure.database import create_database_engine, create_session_factory
+from app.infrastructure.organization_repository import (
+    SQLAlchemyChurchRepository,
+    SQLAlchemyOperatorRepository,
+)
 from app.infrastructure.password_service import Argon2PasswordService
 from app.infrastructure.refresh_session_repository import SQLAlchemyRefreshSessionRepository
 from app.infrastructure.security_settings import SecuritySettings
 from app.infrastructure.session_issuer import SQLAlchemySessionIssuer
 from app.infrastructure.user_repository import SQLAlchemyUserRepository
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:
@@ -62,3 +74,79 @@ async def get_logout_user(
     session: AsyncSession = Depends(get_db_session),
 ) -> LogoutUser:
     return LogoutUser(SQLAlchemyRefreshSessionRepository(session))
+
+
+async def get_create_operator(
+    session: AsyncSession = Depends(get_db_session),
+) -> CreateOperator:
+    return CreateOperator(
+        churches=SQLAlchemyChurchRepository(session),
+        operators=SQLAlchemyOperatorRepository(session),
+        passwords=Argon2PasswordService(),
+    )
+
+
+async def get_operator_management(
+    session: AsyncSession = Depends(get_db_session),
+) -> OperatorManagement:
+    return OperatorManagement(
+        operators=SQLAlchemyOperatorRepository(session),
+        churches=SQLAlchemyChurchRepository(session),
+    )
+
+
+async def get_current_account(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    session: AsyncSession = Depends(get_db_session),
+) -> UserAccount:
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Autenticación requerida"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    secret_key = SecuritySettings().secret_key
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY debe configurarse en el entorno o en backend/.env")
+
+    try:
+        claims = AccessTokenVerifier(secret_key).verify(credentials.credentials)
+    except UnauthorizedException as error:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Token de acceso inválido"},
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from error
+
+    account = await SQLAlchemyUserRepository(session).get_by_id(claims.user_id)
+    if (
+        account is None
+        or not account.active
+        or account.role is UserRole.HERMANO
+        or account.role is not claims.role
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Token de acceso inválido"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return account
+
+
+def require_roles(*allowed_roles: UserRole) -> Callable[..., Awaitable[UserAccount]]:
+    if not allowed_roles:
+        raise ValueError("Debe especificarse al menos un rol permitido")
+
+    async def check_role(
+        account: UserAccount = Depends(get_current_account),
+    ) -> UserAccount:
+        if account.role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "forbidden", "message": "Permisos insuficientes"},
+            )
+        return account
+
+    return check_role
