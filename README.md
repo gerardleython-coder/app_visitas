@@ -703,12 +703,13 @@ app-pastoral/
 ## Estado del proyecto
 
 El backend tiene el endpoint de salud, el caso de uso inicial de autenticación
-y el primer caso de uso HU-02 para crear pastores y líderes con asignación
-territorial. Los repositorios SQLAlchemy persisten distritos, iglesias y
-usuarios; las migraciones validan en PostgreSQL que la iglesia pertenezca al
-distrito asignado, que esté activa para asignaciones y que no se desactive
-mientras conserve operadores activos. Las migraciones están aplicadas y
-verificadas en PostgreSQL 17 local. Siguen pendientes los endpoints HTTP de
-autenticación y administración, las demás historias de usuario y el frontend.
-Se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md` como contrato
-funcional.
+y la ruta `POST /api/v1/auth/login`, con Argon2id, access JWT de 15 minutos y
+persistencia hasheada del refresh inicial. El caso de uso HU-02 crea pastores y
+líderes con asignación territorial. Las migraciones validan en PostgreSQL que
+la iglesia pertenezca al distrito, esté activa y no se desactive mientras
+conserve operadores activos. El esquema está aplicado y verificado en
+PostgreSQL 17 local; GitHub Actions también usa PostgreSQL 17 efímero para las
+migraciones y la prueba de integración del login. Siguen pendientes la rotación
+de refresh, logout y recuperación de cuenta, los endpoints administrativos,
+las demás historias de usuario y el frontend. Se implementarán en iteraciones
+TDD, manteniendo `INSTRUCTIOS.md` como contrato funcional.

@@ -12,6 +12,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: app_visitas_test
+          POSTGRES_USER: app_visitas_test
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app_visitas_test -d app_visitas_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -33,8 +47,17 @@ jobs:
 
       - name: Lint backend
         working-directory: backend
-        run: poetry run ruff check app tests
+        run: poetry run ruff check app tests migrations
+
+      - name: Apply PostgreSQL migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://app_visitas_test:ci-only-password@localhost:5432/app_visitas_test
+        run: poetry run alembic upgrade head
 
       - name: Test backend
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://app_visitas_test:ci-only-password@localhost:5432/app_visitas_test
+          RUN_POSTGRES_INTEGRATION: "1"
         run: poetry run pytest --cov=app --cov-report=term-missing --cov-fail-under=85

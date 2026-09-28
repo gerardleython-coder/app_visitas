@@ -20,7 +20,7 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
     finally:
         engine.dispose()
 
-    assert {"distritos", "iglesias", "usuarios"} <= tables
+    assert {"distritos", "iglesias", "usuarios", "sesiones_refresh"} <= tables
 
 
 def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
@@ -50,7 +50,7 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
         "sqlalchemy.url",
         "postgresql+asyncpg://placeholder:placeholder@localhost/app_visitas_dev",
     )
-    command.downgrade(downgrade_config, "3ec9e67695c7:base", sql=True)
+    command.downgrade(downgrade_config, "f6117ca1487e:base", sql=True)
 
     assert "DROP TYPE rol_usuario" in downgrade_output.getvalue()
     assert "DROP TRIGGER IF EXISTS trg_iglesia_con_operadores_activos ON iglesias" in (
@@ -65,6 +65,7 @@ def test_postgresql_migration_declares_uuid_extension_and_role_type() -> None:
     assert "DROP FUNCTION IF EXISTS validar_usuario_iglesia_activa()" in (
         downgrade_output.getvalue()
     )
+    assert "DROP TABLE sesiones_refresh" in downgrade_output.getvalue()
 
 
 def test_postgresql_migration_rejects_operators_assigned_to_inactive_churches() -> None:

@@ -131,3 +131,28 @@ class UserModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class RefreshSessionModel(Base):
+    __tablename__ = "sesiones_refresh"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        "usuario_id", Uuid(as_uuid=True), ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    replaced_by_id: Mapped[UUID | None] = mapped_column(
+        "reemplazado_por",
+        Uuid(as_uuid=True),
+        ForeignKey("sesiones_refresh.id", ondelete="SET NULL"),
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        "expira_at", DateTime(timezone=True), nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column("revocado_at", DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column("usado_at", DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
