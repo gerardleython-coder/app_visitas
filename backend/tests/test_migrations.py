@@ -35,6 +35,27 @@ def test_initial_migration_creates_territorial_and_user_tables(tmp_path: Path) -
     } <= tables
 
 
+def test_migrations_use_connection_supplied_by_caller(tmp_path: Path) -> None:
+    configured_database = tmp_path / "configured.db"
+    supplied_database = tmp_path / "supplied.db"
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite+aiosqlite:///{configured_database}")
+    engine = create_engine(f"sqlite:///{supplied_database}")
+    try:
+        with engine.connect() as connection:
+            config.attributes["connection"] = connection
+            command.upgrade(config, "head")
+            assert inspect(connection).has_table("usuarios")
+
+        configured_engine = create_engine(f"sqlite:///{configured_database}")
+        try:
+            assert "usuarios" not in inspect(configured_engine).get_table_names()
+        finally:
+            configured_engine.dispose()
+    finally:
+        engine.dispose()
+
+
 def test_refresh_family_migration_backfills_existing_sessions(tmp_path: Path) -> None:
     database_path = tmp_path / "refresh-family.db"
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
