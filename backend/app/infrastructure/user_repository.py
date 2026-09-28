@@ -18,6 +18,13 @@ class SQLAlchemyUserRepository:
         result = await self._session.get(UserModel, user_id)
         return self._to_account(result)
 
+    async def update_password_hash(self, user_id: UUID, password_hash: str) -> None:
+        result = await self._session.get(UserModel, user_id)
+        if result is None:
+            raise RuntimeError("El usuario dejó de existir durante el restablecimiento")
+        result.password_hash = password_hash
+        await self._session.flush()
+
     @staticmethod
     def _to_account(result: UserModel | None) -> UserAccount | None:
         if result is None or result.email is None:

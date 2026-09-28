@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.domain.notification import VisitNotification
+from app.domain.password_recovery import PasswordResetEmail
 
 
 class SMTPSettings(BaseSettings):
@@ -31,10 +32,16 @@ class SMTPEmailSender:
         self._settings = settings
 
     async def send_visit_created(self, notification: VisitNotification) -> None:
-        settings = self._settings
-        if not settings.smtp_host or not settings.emails_from_email:
-            raise RuntimeError("SMTP no está configurado")
+        self._ensure_configured()
         await asyncio.to_thread(self._send, notification)
+
+    async def send_password_reset(self, recovery_email: PasswordResetEmail) -> None:
+        self._ensure_configured()
+        await asyncio.to_thread(self._send_password_reset, recovery_email)
+
+    def _ensure_configured(self) -> None:
+        if not self._settings.smtp_host or not self._settings.emails_from_email:
+            raise RuntimeError("SMTP no está configurado")
 
     def _send(self, notification: VisitNotification) -> None:
         settings = self._settings
@@ -54,6 +61,27 @@ class SMTPEmailSender:
             f"Ubicación: {notification.location}\n"
         )
 
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
+            client.ehlo()
+            if settings.smtp_use_tls:
+                client.starttls(context=ssl.create_default_context())
+                client.ehlo()
+            if settings.smtp_user and settings.smtp_password:
+                client.login(settings.smtp_user, settings.smtp_password.get_secret_value())
+            client.send_message(message)
+
+    def _send_password_reset(self, recovery_email: PasswordResetEmail) -> None:
+        settings = self._settings
+        message = EmailMessage()
+        message["From"] = settings.emails_from_email
+        message["To"] = recovery_email.recipient_email
+        message["Subject"] = "Restablecimiento de contraseña"
+        message.set_content(
+            "Se solicitó restablecer la contraseña de tu cuenta.\n\n"
+            "Usa este token de un solo uso dentro de los próximos 30 minutos:\n"
+            f"{recovery_email.token}\n\n"
+            "No compartas este token. Si no solicitaste el cambio, ignora este mensaje.\n"
+        )
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
             client.ehlo()
             if settings.smtp_use_tls:

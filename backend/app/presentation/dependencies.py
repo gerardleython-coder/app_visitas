@@ -8,6 +8,7 @@ from app.application.authenticate_user import AuthenticateUser
 from app.application.audit import ListAudit
 from app.application.manage_brothers import ManageBrothers
 from app.application.create_operator import CreateOperator
+from app.application.password_recovery import RequestPasswordReset, ResetPassword
 from app.application.manage_operators import OperatorManagement
 from app.application.manage_visits import ManageVisits
 from app.application.logout_user import LogoutUser
@@ -26,6 +27,7 @@ from app.infrastructure.organization_repository import (
     SQLAlchemyOperatorRepository,
 )
 from app.infrastructure.password_service import Argon2PasswordService
+from app.infrastructure.password_recovery_repository import SQLAlchemyPasswordRecoveryRepository
 from app.infrastructure.refresh_session_repository import SQLAlchemyRefreshSessionRepository
 from app.infrastructure.security_settings import SecuritySettings
 from app.infrastructure.session_issuer import SQLAlchemySessionIssuer
@@ -65,6 +67,30 @@ async def get_authenticate_user(
         passwords=Argon2PasswordService(),
         sessions=SQLAlchemySessionIssuer(session, secret_key),
     )
+
+
+async def get_request_password_reset(
+    session: AsyncSession = Depends(get_db_session),
+) -> RequestPasswordReset:
+    return RequestPasswordReset(
+        users=SQLAlchemyUserRepository(session),
+        recovery=SQLAlchemyPasswordRecoveryRepository(session),
+    )
+
+
+async def get_reset_password(
+    session: AsyncSession = Depends(get_db_session),
+) -> ResetPassword:
+    return ResetPassword(
+        users=SQLAlchemyUserRepository(session),
+        recovery=SQLAlchemyPasswordRecoveryRepository(session),
+        sessions=SQLAlchemyRefreshSessionRepository(session),
+        passwords=Argon2PasswordService(),
+    )
+
+
+async def get_password_reset_email_sender() -> SMTPEmailSender:
+    return SMTPEmailSender(SMTPSettings())
 
 
 async def get_rotate_refresh_token(

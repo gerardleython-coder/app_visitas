@@ -164,6 +164,27 @@ class RefreshSessionModel(Base):
     )
 
 
+class PasswordRecoveryTokenModel(Base):
+    __tablename__ = "tokens_recuperacion"
+    __table_args__ = (Index("ix_tokens_recuperacion_usuario", "usuario_id"),)
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        "usuario_id",
+        Uuid(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column("token_hash", String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column("expira_at", DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column("usado_at", DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        "created_at", DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class BrotherAssignmentModel(Base):
     __tablename__ = "asignaciones_hermano"
     __table_args__ = (

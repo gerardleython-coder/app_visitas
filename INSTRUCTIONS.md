@@ -141,6 +141,10 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 - El access token dura 15 minutos.
 - Los refresh tokens se rotan, se almacenan de forma revocable y se invalidan
   al cerrar sesión, expirar o detectar reutilización.
+- Los tokens de recuperación son aleatorios, de un solo uso, expiran en 30
+  minutos y se almacenan únicamente como SHA-256. La solicitud de recuperación
+  responde igual para cuentas existentes y desconocidas; el reset exitoso
+  invalida todas las sesiones refresh de la cuenta.
 - Debe existir recuperación y cambio de contraseña para usuarios con acceso.
 - Los secretos se cargan desde variables de entorno y nunca se versionan.
 - No incluir secretos reales, tokens ni credenciales en documentación,
@@ -151,7 +155,9 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 
 - `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
-- `POST /auth/password/forgot` y `POST /auth/password/reset`.
+- `POST /auth/password/forgot` devuelve `202` sin revelar si el email existe;
+  `POST /auth/password/reset` consume un token único y devuelve `204` o un error
+  genérico `400` si el token no es válido.
 - CRUD de `/admin/distritos` y `/admin/iglesias`, solo `ADMIN`.
 - CRUD y asignación de `/users/pastores`, solo `ADMIN`.
 - Creación y asignación de `/users/lideres`, solo `ADMIN`; `PASTOR` puede

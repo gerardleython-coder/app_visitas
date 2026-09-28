@@ -2,7 +2,7 @@
 
 Sistema móvil fullstack para gestionar distritos, iglesias, pastores, líderes,
 hermanos y visitas pastorales. Este repositorio contiene la especificación
-técnica y funcional base; la implementación seguirá [INSTRUCTIOS.md](INSTRUCTIOS.md),
+técnica y funcional base; la implementación seguirá [INSTRUCTIONS.md](INSTRUCTIONS.md),
 que es la fuente normativa del proyecto.
 
 ## Contenido
@@ -662,6 +662,18 @@ Característica: Seguridad de sesión
         Entonces la contraseña se actualiza con un hash seguro
         Y los refresh tokens anteriores quedan revocados
 
+    Escenario: Solicitar recuperación sin revelar si existe la cuenta
+        Dado un email de una cuenta operativa o un email desconocido
+        Cuando solicita recuperar la contraseña
+        Entonces ambas solicitudes reciben la misma respuesta
+        Y ningún token se incluye en la respuesta HTTP
+
+    Escenario: Rechazar token de recuperación expirado o reutilizado
+        Dado un token de recuperación vencido o previamente consumido
+        Cuando intenta restablecer la contraseña
+        Entonces la operación es rechazada con un error genérico
+        Y la contraseña y las sesiones no cambian
+
     Escenario: Impedir reutilización de refresh token
         Dado un refresh token que ya fue utilizado o revocado
         Cuando se intenta renovar la sesión con ese token
@@ -712,8 +724,8 @@ Prefijo: `/api/v1`.
 | `POST /auth/login` | ADMIN, PASTOR o LIDER |
 | `POST /auth/refresh` | Rotar refresh token de un solo uso |
 | `POST /auth/logout` | Revocar sesión y refresh token |
-| `POST /auth/password/forgot` | Solicitar recuperación |
-| `POST /auth/password/reset` | Restablecer contraseña |
+| `POST /auth/password/forgot` | 202 neutral; envía token de recuperación solo a cuentas operativas existentes |
+| `POST /auth/password/reset` | Consume token de un uso; actualiza password y revoca todas las sesiones |
 | `GET /admin/distritos` | ADMIN |
 | `POST /admin/distritos` | ADMIN |
 | `PATCH /admin/distritos/{id}` | ADMIN |
@@ -864,7 +876,9 @@ commit mediante SMTP y deja fallos en un outbox durable con backoff, contador de
 intentos y tipo de error; un worker del lifespan reintenta mensajes vencidos
 cada 30 segundos. HU-07 implementa ranking por iglesia con `DENSE_RANK()` de
 visitas completadas por `fecha_completada`, periodos de semana/mes en
-`America/Bogota` y scope ADMIN/PASTOR. HU-08 a HU-09, recuperación de cuenta,
-CRUD administrativo de distritos e iglesias y frontend siguen pendientes. Se
-mantiene `INSTRUCTIOS.md` como contrato funcional y se implementa en iteraciones
-TDD.
+`America/Bogota` y scope ADMIN/PASTOR. HU-08 implementa recuperación con token
+aleatorio de 30 minutos almacenado como SHA-256, respuesta anti-enumeración,
+consumo de un uso y revocación de refresh tokens al cambiar la contraseña.
+HU-09, CRUD administrativo de distritos e iglesias y frontend siguen pendientes.
+Se mantiene `INSTRUCTIONS.md` como contrato funcional y se implementa en
+iteraciones TDD.

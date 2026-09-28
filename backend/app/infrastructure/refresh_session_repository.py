@@ -65,3 +65,13 @@ class SQLAlchemyRefreshSessionRepository:
             )
             .values(revoked_at=revoked_at)
         )
+
+    async def revoke_for_user(self, user_id: UUID, revoked_at: datetime) -> None:
+        await self._session.execute(
+            update(RefreshSessionModel)
+            .where(
+                RefreshSessionModel.user_id == user_id,
+                RefreshSessionModel.revoked_at.is_(None),
+            )
+            .values(revoked_at=revoked_at)
+        )
