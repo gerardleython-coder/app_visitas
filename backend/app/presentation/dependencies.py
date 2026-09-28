@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.authenticate_user import AuthenticateUser
+from app.application.logout_user import LogoutUser
 from app.application.rotate_refresh_token import RotateRefreshToken
 from app.infrastructure.database import create_database_engine, create_session_factory
 from app.infrastructure.password_service import Argon2PasswordService
@@ -55,3 +56,9 @@ async def get_rotate_refresh_token(
         issuer=SQLAlchemySessionIssuer(session, secret_key),
         unit_of_work=session,
     )
+
+
+async def get_logout_user(
+    session: AsyncSession = Depends(get_db_session),
+) -> LogoutUser:
+    return LogoutUser(SQLAlchemyRefreshSessionRepository(session))

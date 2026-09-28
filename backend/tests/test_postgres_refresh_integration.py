@@ -135,5 +135,27 @@ def test_refresh_rotation_replay_revokes_entire_family(
             assert replacement_replay.status_code == 401
             _, revoked_sessions = asyncio.run(find_family_tokens(original_refresh))
             assert all(item.revoked_at is not None for item in revoked_sessions)
+
+            second_login = client.post(
+                "/api/v1/auth/login",
+                json={"email": email, "password": password},
+            )
+            assert second_login.status_code == 200
+            logout_token = second_login.json()["refresh_token"]
+            logout = client.post(
+                "/api/v1/auth/logout",
+                json={"refresh_token": logout_token},
+            )
+            assert logout.status_code == 204
+            assert logout.content == b""
+
+            after_logout = client.post(
+                "/api/v1/auth/refresh",
+                json={"refresh_token": logout_token},
+            )
+            assert after_logout.status_code == 401
+            _, logout_sessions = asyncio.run(find_family_tokens(logout_token))
+            assert len(logout_sessions) == 1
+            assert logout_sessions[0].revoked_at is not None
     finally:
         asyncio.run(remove_test_user())

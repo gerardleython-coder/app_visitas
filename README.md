@@ -709,6 +709,7 @@ de uso HU-02 crea pastores y líderes con asignación territorial. Las migracion
 validan en PostgreSQL que la iglesia pertenezca al distrito, esté activa y no
 se desactive mientras conserve operadores activos. El esquema está aplicado y
 verificado en PostgreSQL 17 local; GitHub Actions usa PostgreSQL 17 efímero para
-migraciones e integración. Siguen pendientes logout, recuperación de cuenta,
-endpoints administrativos, las demás historias y el frontend. Se implementarán
-en iteraciones TDD, manteniendo `INSTRUCTIOS.md` como contrato funcional.
+migraciones e integración de login, rotación y logout. Siguen pendientes la
+recuperación de cuenta, endpoints administrativos, las demás historias y el
+frontend. Se implementarán en iteraciones TDD, manteniendo `INSTRUCTIOS.md`
+como contrato funcional.

@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.application.authenticate_user import AuthenticateUser
+from app.application.logout_user import LogoutUser
 from app.application.rotate_refresh_token import RotateRefreshToken
 from app.domain.errors import UnauthorizedException
-from app.presentation.dependencies import get_authenticate_user, get_rotate_refresh_token
+from app.presentation.dependencies import (
+    get_authenticate_user,
+    get_logout_user,
+    get_rotate_refresh_token,
+)
 
 
 class LoginRequest(BaseModel):
@@ -64,3 +69,12 @@ async def refresh(
         refresh_token=tokens.refresh_token,
         expires_in=tokens.access_expires_in,
     )
+
+
+@router.post("/auth/logout", status_code=204, response_class=Response)
+async def logout(
+    request: RefreshRequest,
+    logout_user: LogoutUser = Depends(get_logout_user),
+) -> Response:
+    await logout_user.execute(request.refresh_token)
+    return Response(status_code=204)
