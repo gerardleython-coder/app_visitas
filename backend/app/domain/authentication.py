@@ -17,3 +17,5 @@ class UserAccount:
     password_hash: str | None
     role: UserRole
     active: bool
+    district_id: UUID | None = None
+    church_id: UUID | None = None

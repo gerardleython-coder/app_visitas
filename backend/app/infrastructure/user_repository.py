@@ -36,4 +36,6 @@ class SQLAlchemyUserRepository:
             password_hash=result.password_hash,
             role=result.role,
             active=result.active,
+            district_id=result.district_id,
+            church_id=result.church_id,
         )

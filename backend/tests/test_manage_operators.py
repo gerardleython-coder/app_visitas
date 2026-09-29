@@ -328,6 +328,25 @@ async def test_operator_deactivation_is_idempotent_and_requires_existing_church_
     assert audit.records == []
 
 
+async def test_pastor_cannot_deactivate_a_leader_in_their_church() -> None:
+    church_id = uuid4()
+    pastor = operator(role=UserRole.PASTOR, church_id=church_id)
+    leader = operator(role=UserRole.LIDER, church_id=church_id)
+    repository = FakeOperatorRepository(profiles={pastor.id: pastor, leader.id: leader})
+    audit = FakeAuditRepository()
+    management = OperatorManagement(repository, FakeChurchRepository(), audit)
+
+    with pytest.raises(ForbiddenException):
+        await management.deactivate_operator(
+            account(UserRole.PASTOR, pastor.id),
+            leader.id,
+            UserRole.LIDER,
+        )
+
+    assert repository.profiles[leader.id] == leader
+    assert audit.records == []
+
+
 async def test_setting_primary_pastor_rejects_non_admin_and_inactive_church() -> None:
     church_id = uuid4()
     pastor = operator(role=UserRole.PASTOR, church_id=church_id)

@@ -301,7 +301,7 @@ async def deactivate_pastor(
 @router.delete("/users/lideres/{operator_id}", status_code=204)
 async def deactivate_leader(
     operator_id: UUID,
-    actor: UserAccount = Depends(require_roles(UserRole.ADMIN, UserRole.PASTOR)),
+    actor: UserAccount = Depends(require_roles(UserRole.ADMIN)),
     management: OperatorManagement = Depends(get_operator_management),
 ) -> Response:
     return await _deactivate_operator(

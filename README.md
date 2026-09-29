@@ -81,7 +81,7 @@ una única iglesia activa. Una iglesia puede tener varios pastores y líderes;
 | --- | --- | --- | --- | --- |
 | Distritos e iglesias | CRUD global | - | - | - |
 | Pastores | CRUD y asignación global | - | - | - |
-| Líderes | CRUD y asignación global | Consultar y editar datos en su iglesia | Consultar perfil | - |
+| Líderes | Crear, asignar, editar y desactivar globalmente | Consultar y editar en su iglesia | Consultar perfil | - |
 | Hermanos | CRUD global | CRUD en su iglesia | CRUD de asignados | - |
 | Visitas | CRUD global | CRUD en su iglesia | CRUD de asignadas | - |
 | Eliminar hermanos y visitas | Sí | Sí, en su alcance | Sí, de asignados | No |
@@ -778,6 +778,7 @@ Prefijo: `/api/v1`.
 | Método y ruta | Alcance |
 | --- | --- |
 | `POST /auth/login` | ADMIN, PASTOR o LIDER |
+| `GET /auth/me` | Perfil autenticado y asignación, sin credenciales ni tokens |
 | `POST /auth/refresh` | Rotar refresh token de un solo uso |
 | `POST /auth/logout` | Revocar sesión y refresh token |
 | `POST /auth/password/forgot` | 202 neutral; envía token de recuperación solo a cuentas operativas existentes |
@@ -799,7 +800,7 @@ Prefijo: `/api/v1`.
 | `GET /users/lideres` | ADMIN o PASTOR en alcance |
 | `POST /users/lideres` | ADMIN, crea y asigna |
 | `PATCH /users/lideres/{id}` | ADMIN o PASTOR en alcance |
-| `DELETE /users/lideres/{id}` | ADMIN o PASTOR en alcance |
+| `DELETE /users/lideres/{id}` | ADMIN |
 | `GET /hermanos` | Según alcance |
 | `POST /hermanos` | ADMIN, PASTOR o LIDER autorizado |
 | `GET /hermanos/{id}` | Según alcance |
@@ -842,6 +843,7 @@ SECRET_KEY=generar-un-secreto-largo-fuera-del-repositorio
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 TIMEZONE=America/Bogota
+CORS_ORIGINS=http://localhost:5000,http://127.0.0.1:5000
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=usuario-smtp
@@ -872,6 +874,17 @@ Frontend:
 cd frontend
 flutter test --coverage
 ```
+
+Para iniciar el backend en `http://127.0.0.1:8000` y la app Flutter Web en
+Chrome durante desarrollo:
+
+```bash
+cd frontend
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5000 --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
+
+Configura `CORS_ORIGINS` en el backend con los orígenes exactos del despliegue;
+no uses comodines cuando se envíe el encabezado `Authorization`.
 
 La cobertura mínima objetivo es del 91 %. Deben cubrirse autorización,
 asignaciones, fechas, duplicados, transiciones, auditoría, ranking, BLoCs,

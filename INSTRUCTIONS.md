@@ -151,6 +151,8 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
   solo se permite cuando no quedan usuarios activos; se conservan las relaciones
   históricas.
 - Los secretos se cargan desde variables de entorno y nunca se versionan.
+- CORS debe limitarse a los orígenes de despliegue configurados; el modo local
+  permite únicamente `http://localhost:5000` y `http://127.0.0.1:5000`.
 - No incluir secretos reales, tokens ni credenciales en documentación,
   fixtures o mensajes de error.
 
@@ -159,6 +161,8 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 
 - `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
+- `GET /auth/me` devuelve la identidad y asignación del usuario autenticado sin
+  exponer contraseña, hash ni tokens.
 - `POST /auth/password/forgot` devuelve `202` sin revelar si el email existe;
   `POST /auth/password/reset` consume un token único y devuelve `204` o un error
   genérico `400` si el token no es válido.

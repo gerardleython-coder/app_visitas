@@ -126,6 +126,9 @@ class OperatorManagement:
         operator_id: UUID,
         role: UserRole,
     ) -> OperatorProfile:
+        if actor.role is not UserRole.ADMIN:
+            raise ForbiddenException("Solo ADMIN puede desactivar usuarios")
+
         operator = await self._get_authorized_operator(actor, operator_id, role)
         if not operator.active:
             return operator

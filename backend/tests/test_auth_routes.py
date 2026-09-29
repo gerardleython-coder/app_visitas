@@ -1,11 +1,13 @@
 from dataclasses import dataclass
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from app.application.authenticate_user import SessionTokens
+from app.domain.authentication import UserAccount, UserRole
 from app.domain.errors import UnauthorizedException
 from app.main import app
-from app.presentation.dependencies import get_authenticate_user
+from app.presentation.dependencies import get_authenticate_user, get_current_account
 
 
 @dataclass
@@ -61,3 +63,47 @@ def test_login_uses_uniform_authentication_error() -> None:
     assert response.json() == {
         "detail": {"code": "unauthorized", "message": "Credenciales inválidas"}
     }
+
+
+def test_current_account_returns_only_safe_profile_fields() -> None:
+    district_id = uuid4()
+    church_id = uuid4()
+    actor = UserAccount(
+        id=uuid4(),
+        email="admin@example.test",
+        password_hash="never-return-this-hash",
+        role=UserRole.ADMIN,
+        active=True,
+        district_id=district_id,
+        church_id=church_id,
+    )
+    app.dependency_overrides[get_current_account] = lambda: actor
+    try:
+        response = TestClient(app).get("/api/v1/auth/me")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": str(actor.id),
+        "email": actor.email,
+        "role": "ADMIN",
+        "active": True,
+        "district_id": str(district_id),
+        "church_id": str(church_id),
+    }
+    assert "password_hash" not in response.json()
+
+
+def test_flutter_web_origin_passes_cors_preflight() -> None:
+    response = TestClient(app).options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:5000",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5000"

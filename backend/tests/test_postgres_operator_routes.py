@@ -153,6 +153,8 @@ def test_admin_operator_routes_persist_assignment_and_enforce_role_scope(
             admin_headers = {
                 "Authorization": f"Bearer {admin_login.json()['access_token']}"
             }
+            admin_identity = client.get("/api/v1/auth/me", headers=admin_headers)
+            assert admin_identity.status_code == 200
 
             role_escalation_response = client.post(
                 "/api/v1/users/pastores",
@@ -358,16 +360,21 @@ def test_admin_operator_routes_persist_assignment_and_enforce_role_scope(
             assert client.delete(
                 f"/api/v1/users/lideres/{foreign_leader_id}",
                 headers=pastor_headers,
-            ).status_code == 404
+            ).status_code == 403
             assert client.patch(
                 f"/api/v1/users/lideres/{leader_response.json()['id']}",
                 headers=pastor_headers,
                 json={"role": UserRole.ADMIN.value},
             ).status_code == 422
 
-            deactivated_leader = client.delete(
+            pastor_deactivation = client.delete(
                 f"/api/v1/users/lideres/{leader_response.json()['id']}",
                 headers=pastor_headers,
+            )
+            assert pastor_deactivation.status_code == 403
+            deactivated_leader = client.delete(
+                f"/api/v1/users/lideres/{leader_response.json()['id']}",
+                headers=admin_headers,
             )
             assert deactivated_leader.status_code == 204
             assert client.post(
@@ -386,7 +393,7 @@ def test_admin_operator_routes_persist_assignment_and_enforce_role_scope(
                 event for event in leader_events if event["action"] == "DESACTIVADO"
             )
             assert {event["action"] for event in leader_events} >= {"CREADO", "DESACTIVADO"}
-            assert deactivation_event["actor_id"] == replacement_pastor_response.json()["id"]
+            assert deactivation_event["actor_id"] == admin_identity.json()["id"]
             assert deactivation_event["previous_values"]["active"] is True
             assert deactivation_event["new_values"]["active"] is False
 

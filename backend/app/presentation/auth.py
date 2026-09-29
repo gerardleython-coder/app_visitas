@@ -70,6 +70,15 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class CurrentAccountResponse(BaseModel):
+    id: str
+    email: str
+    role: UserRole
+    active: bool
+    district_id: str | None
+    church_id: str | None
+
+
 router = APIRouter(tags=["auth"])
 
 
@@ -103,6 +112,22 @@ async def login(
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
         expires_in=tokens.access_expires_in,
+    )
+
+
+@router.get("/auth/me", response_model=CurrentAccountResponse)
+async def current_account(
+    actor: UserAccount = Depends(
+        require_roles(UserRole.ADMIN, UserRole.PASTOR, UserRole.LIDER)
+    ),
+) -> CurrentAccountResponse:
+    return CurrentAccountResponse(
+        id=str(actor.id),
+        email=actor.email,
+        role=actor.role,
+        active=actor.active,
+        district_id=str(actor.district_id) if actor.district_id else None,
+        church_id=str(actor.church_id) if actor.church_id else None,
     )
 
 

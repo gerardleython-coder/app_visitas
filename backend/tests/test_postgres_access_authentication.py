@@ -104,6 +104,21 @@ def test_access_token_authentication_uses_current_postgresql_user(
             )
         assert login_response.status_code == 200
         access_token = login_response.json()["access_token"]
+        with TestClient(app) as profile_client:
+            profile_response = profile_client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        assert profile_response.status_code == 200
+        assert profile_response.json() == {
+            "id": str(account_id),
+            "email": email,
+            "role": UserRole.ADMIN.value,
+            "active": True,
+            "district_id": None,
+            "church_id": None,
+        }
+        assert "password_hash" not in profile_response.json()
         now = datetime.now(UTC)
         stale_role_token = jwt.encode(
             {
