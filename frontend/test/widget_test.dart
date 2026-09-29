@@ -99,6 +99,30 @@ void main() {
     await session.close();
   });
 
+  testWidgets('login errors are shown above the form', (tester) async {
+    final gateway = _SessionFake();
+    final session = SessionCubit(gateway: gateway, store: _MemoryStore());
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: session,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginScreen(error: 'Credenciales inválidas.'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final error = find.text('Credenciales inválidas.');
+    expect(error, findsOneWidget);
+    expect(
+      tester.getTopLeft(error).dy,
+      lessThan(tester.getTopLeft(find.text('Iniciar sesión')).dy),
+    );
+
+    await session.close();
+  });
+
   testWidgets('recovery form displays neutral confirmation', (tester) async {
     final gateway = _SessionFake();
     final session = SessionCubit(gateway: gateway, store: _MemoryStore());

@@ -56,6 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     _brand(),
                     const SizedBox(height: 28),
                     _accessNote(),
+                    if (widget.error != null && !_recovering) ...[
+                      const SizedBox(height: 12),
+                      _errorBanner(widget.error!),
+                    ],
                     const SizedBox(height: 16),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
@@ -65,10 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? _resetForm()
                               : _recoveryForm(),
                     ),
-                    if (widget.error != null && !_recovering) ...[
-                      const SizedBox(height: 12),
-                      _errorBanner(widget.error!),
-                    ],
                     const SizedBox(height: 16),
                     Text(
                       'Acceso exclusivo para cuentas operativas activas.',
