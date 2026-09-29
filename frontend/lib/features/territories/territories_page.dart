@@ -267,8 +267,8 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
   }
 
   Future<void> _editChurch(Church church) async {
-    final nameController = TextEditingController(text: church.name);
-    final addressController = TextEditingController(text: church.address ?? '');
+    var name = church.name;
+    var address = church.address ?? '';
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -277,11 +277,13 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
-                controller: nameController,
+              initialValue: name,
+              onChanged: (value) => name = value,
                 decoration: const InputDecoration(labelText: 'Nombre')),
             const SizedBox(height: 12),
             TextFormField(
-                controller: addressController,
+              initialValue: address,
+              onChanged: (value) => address = value,
                 decoration: const InputDecoration(labelText: 'Dirección')),
             const SizedBox(height: 8),
             Align(
@@ -300,15 +302,13 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
         ],
       ),
     );
-    if (saved == true && nameController.text.trim().isNotEmpty) {
+    if (saved == true && name.trim().isNotEmpty) {
       await _run(() => widget.repository.updateChurch(
             church.id,
-            name: nameController.text.trim(),
-            address: addressController.text.trim(),
+            name: name.trim(),
+            address: address.trim(),
           ));
     }
-    nameController.dispose();
-    addressController.dispose();
   }
 
   Future<void> _deleteDistrict(District district) async {
@@ -345,13 +345,14 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
 
   Future<String?> _nameDialog(
       {required String title, String initial = ''}) async {
-    final controller = TextEditingController(text: initial);
+    var name = initial;
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: TextField(
-            controller: controller,
+        content: TextFormField(
+          initialValue: initial,
+          onChanged: (value) => name = value,
             autofocus: true,
             decoration: const InputDecoration(labelText: 'Nombre')),
         actions: [
@@ -359,21 +360,19 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar')),
           FilledButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, controller.text.trim()),
+              onPressed: () => Navigator.pop(dialogContext, name.trim()),
               child: const Text('Guardar')),
         ],
       ),
     );
-    controller.dispose();
     if (result == null || result.trim().isEmpty) return null;
     return result.trim();
   }
 
   Future<(String, String, String?)?> _churchForm() async {
     String? districtId = _districts.first.id;
-    final name = TextEditingController();
-    final address = TextEditingController();
+    var name = '';
+    var address = '';
     final result = await showDialog<(String, String, String?)>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -393,11 +392,11 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
               ),
               const SizedBox(height: 12),
               TextField(
-                  controller: name,
+                  onChanged: (value) => name = value,
                   decoration: const InputDecoration(labelText: 'Nombre')),
               const SizedBox(height: 12),
               TextField(
-                  controller: address,
+                  onChanged: (value) => address = value,
                   decoration: const InputDecoration(labelText: 'Dirección')),
             ],
           ),
@@ -407,11 +406,11 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
                 child: const Text('Cancelar')),
             FilledButton(
               onPressed: () {
-                if (districtId != null && name.text.trim().isNotEmpty) {
+                if (districtId != null && name.trim().isNotEmpty) {
                   Navigator.pop(dialogContext, (
                     districtId!,
-                    name.text.trim(),
-                    address.text.trim().isEmpty ? null : address.text.trim()
+                    name.trim(),
+                    address.trim().isEmpty ? null : address.trim()
                   ));
                 }
               },
@@ -421,8 +420,6 @@ class _TerritoriesPageState extends State<TerritoriesPage> {
         ),
       ),
     );
-    name.dispose();
-    address.dispose();
     return result;
   }
 

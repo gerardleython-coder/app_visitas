@@ -19,6 +19,7 @@ import 'package:app_visitas/core/session/session_store.dart';
 import 'package:app_visitas/core/time/bogota_time.dart';
 import 'package:app_visitas/features/auth/login_screen.dart';
 import 'package:app_visitas/features/team/team_page.dart';
+import 'package:app_visitas/features/territories/territories_page.dart';
 import 'package:app_visitas/features/visits/visits_page.dart';
 import 'package:app_visitas/core/theme/app_theme.dart';
 import 'package:mocktail/mocktail.dart';
@@ -276,6 +277,26 @@ void main() {
       findsOneWidget,
     );
     expect(find.byTooltip('Acciones de usuario'), findsNothing);
+  });
+
+  testWidgets('canceling the new district dialog closes cleanly',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    when(() => repository.districts()).thenAnswer((_) async => const []);
+    when(() => repository.churches()).thenAnswer((_) async => const []);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(body: TerritoriesPage(repository: repository)),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nuevo distrito'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Administración territorial'), findsOneWidget);
+    expect(find.text('Nuevo distrito'), findsOneWidget);
   });
 
   testWidgets('pastor can open a visit history with changes and reason',
