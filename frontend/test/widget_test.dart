@@ -248,6 +248,116 @@ void main() {
     expect(find.text('No hay usuarios para mostrar.'), findsOneWidget);
   });
 
+  testWidgets('admin can create administrators but cannot deactivate self',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    const ownProfile = OperatorProfile(
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Ana',
+      surname: 'Admin',
+      email: 'admin@example.test',
+      role: 'ADMIN',
+      active: true,
+      districtId: null,
+      churchId: null,
+    );
+    const otherProfile = OperatorProfile(
+      id: 'admin-other',
+      name: 'Luis',
+      surname: 'Admin',
+      email: 'luis@example.test',
+      role: 'ADMIN',
+      active: true,
+      districtId: null,
+      churchId: null,
+    );
+    when(() => repository.administrators()).thenAnswer(
+      (_) async => const [ownProfile, otherProfile],
+    );
+    when(() => repository.operators(any())).thenAnswer((_) async => const []);
+    when(() => repository.districts()).thenAnswer((_) async => const []);
+    when(() => repository.churches()).thenAnswer((_) async => const []);
+    when(() => repository.createAdministrator(
+          name: any(named: 'name'),
+          surname: any(named: 'surname'),
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+        )).thenAnswer((_) async => otherProfile);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: TeamPage(account: _account, repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Equipo pastoral'), findsOneWidget);
+    expect(find.text('Nuevo líder'), findsOneWidget);
+    await tester.tap(find.text('Admins'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Administradores'), findsOneWidget);
+    expect(find.text('Nuevo administrador'), findsOneWidget);
+    final menus = find.byType(PopupMenuButton<String>);
+    await tester.tap(menus.first);
+    await tester.pumpAndSettle();
+    expect(find.text('Editar datos'), findsOneWidget);
+    expect(find.text('Desactivar'), findsNothing);
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Nuevo administrador'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(1), 'Carlos');
+    await tester.enterText(fields.at(2), 'Admin');
+    await tester.enterText(fields.at(3), 'carlos@example.test');
+    await tester.enterText(fields.at(4), 'private-password');
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+
+    verify(() => repository.createAdministrator(
+          name: 'Carlos',
+          surname: 'Admin',
+          email: 'carlos@example.test',
+          password: 'private-password',
+        )).called(1);
+  });
+
+  testWidgets('inactive administrator has no edit or deactivate action',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    const inactiveAdmin = OperatorProfile(
+      id: 'admin-inactive',
+      name: 'Luis',
+      surname: 'Admin',
+      email: 'luis@example.test',
+      role: 'ADMIN',
+      active: false,
+      districtId: null,
+      churchId: null,
+    );
+    when(() => repository.administrators()).thenAnswer(
+      (_) async => const [inactiveAdmin],
+    );
+    when(() => repository.operators(any())).thenAnswer((_) async => const []);
+    when(() => repository.districts()).thenAnswer((_) async => const []);
+    when(() => repository.churches()).thenAnswer((_) async => const []);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: TeamPage(account: _account, repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Admins'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuButton<String>), findsNothing);
+  });
+
   testWidgets('team displays a recoverable error when loading fails',
       (tester) async {
     final repository = _ApiRepositoryMock();

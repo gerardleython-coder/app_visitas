@@ -29,6 +29,7 @@ operativos asociados. `ADMIN`, `PASTOR` y `LIDER` pueden iniciar sesión;
 Funciones principales:
 
 - Administración territorial de distritos e iglesias.
+- Provisión inicial segura y administración de cuentas `ADMIN`.
 - Asignación de distrito, iglesia, roles y responsables por `ADMIN`.
 - Registro y seguimiento de hermanos.
 - Creación, edición, cancelación y reprogramación auditada de visitas.
@@ -73,12 +74,17 @@ auditoría.
 
 ## Roles y permisos
 
-Solo `ADMIN` asigna roles, distrito e iglesia. Cada pastor y líder pertenece a
-una única iglesia activa. Una iglesia puede tener varios pastores y líderes;
-`ADMIN` marca como máximo un pastor principal.
+Solo `ADMIN` asigna roles, distrito e iglesia. Las cuentas `ADMIN` no requieren
+asignación territorial. El primer administrador se provisiona mediante un
+bootstrap privado de un solo uso; después, un `ADMIN` activo administra otras
+cuentas `ADMIN`, sin poder desactivarse ni desactivar al último administrador
+activo. Cada pastor y líder pertenece a una única iglesia activa. Una iglesia
+puede tener varios pastores y líderes; `ADMIN` marca como máximo un pastor
+principal.
 
 | Recurso | ADMIN | PASTOR | LIDER | HERMANO |
 | --- | --- | --- | --- | --- |
+| Administradores | CRUD de otras cuentas; no auto-baja ni baja del último ADMIN activo | - | - | - |
 | Distritos e iglesias | CRUD global | - | - | - |
 | Pastores | CRUD y asignación global | - | - | - |
 | Líderes | Crear, asignar, editar y desactivar globalmente | Consultar y editar en su iglesia | Consultar perfil | - |
@@ -761,6 +767,67 @@ Característica: Administración territorial
         Y no se modifica ningún registro
 ```
 
+### HU-11: Administración de cuentas ADMIN
+
+**Como** `ADMIN`, **quiero** crear y administrar otras cuentas `ADMIN`, **para**
+distribuir la responsabilidad administrativa sin exponer la provisión inicial.
+
+```gherkin
+Característica: Administración de cuentas ADMIN
+
+    Escenario: Provisionar el primer administrador
+        Dado que no existe ninguna cuenta con rol ADMIN
+        Y el servidor tiene configurado un secreto temporal de bootstrap
+        Cuando se presenta el secreto válido y los datos del primer administrador
+        Entonces se crea una cuenta ADMIN activa sin distrito ni iglesia
+        Y la contraseña se almacena con Argon2
+        Y el evento queda auditado sin incluir la contraseña ni su hash
+
+    Escenario: Deshabilitar bootstrap después de la primera cuenta
+        Dado que ya existe una cuenta ADMIN, incluso si está inactiva
+        Cuando se solicita otro bootstrap
+        Entonces la operación es rechazada
+        Y no se crea ni modifica ninguna cuenta
+
+    Escenario: Rechazar bootstrap sin secreto válido
+        Dado que no existe una cuenta ADMIN
+        Cuando se presenta un secreto ausente o incorrecto
+        Entonces la operación es rechazada
+        Y no se crea ninguna cuenta
+
+    Escenario: Crear otro administrador
+        Dado un ADMIN autenticado
+        Cuando crea otra cuenta con nombre, apellido, correo y contraseña
+        Entonces se crea una cuenta ADMIN activa sin asignación territorial
+        Y se registra la creación en auditoría sin credenciales
+
+    Escenario: Consultar y editar administradores
+        Dado un ADMIN autenticado y otra cuenta ADMIN activa
+        Cuando consulta la lista o actualiza nombre, apellido o correo
+        Entonces observa los datos actualizados sin contraseñas ni hashes
+        Y el cambio queda auditado
+
+    Escenario: Desactivar otro administrador
+        Dado dos o más cuentas ADMIN activas
+        Y un ADMIN autenticado intenta desactivar otra cuenta
+        Cuando confirma la operación
+        Entonces la cuenta objetivo queda inactiva sin borrado físico
+        Y se registra la baja y se revocan sus sesiones refresh
+        Y la cuenta no puede iniciar sesión ni renovar sesión
+
+    Escenario: Impedir auto-desactivación y baja del último administrador
+        Dado una cuenta ADMIN autenticada
+        Cuando intenta desactivarse a sí misma o desactivar al último ADMIN activo
+        Entonces la operación es rechazada
+        Y las cuentas permanecen sin cambios
+
+    Escenario: Denegar la gestión de administradores a otros roles
+        Dado un usuario con rol PASTOR o LIDER
+        Cuando intenta listar, crear, editar o desactivar cuentas ADMIN
+        Entonces recibe una respuesta de permisos insuficientes
+        Y no se modifica ninguna cuenta
+```
+
 ### Criterios de diseño para las HU
 
 - **INVEST:** cada HU debe tener un único valor de negocio, alcance acotado,
@@ -778,6 +845,7 @@ Prefijo: `/api/v1`.
 | Método y ruta | Alcance |
 | --- | --- |
 | `POST /auth/login` | ADMIN, PASTOR o LIDER |
+| `POST /auth/bootstrap-admin` | Provisionamiento privado del primer ADMIN; secreto temporal obligatorio y solo si no existe ninguna cuenta ADMIN |
 | `GET /auth/me` | Perfil autenticado y asignación, sin credenciales ni tokens |
 | `POST /auth/refresh` | Rotar refresh token de un solo uso |
 | `POST /auth/logout` | Revocar sesión y refresh token |
@@ -801,6 +869,10 @@ Prefijo: `/api/v1`.
 | `POST /users/lideres` | ADMIN, crea y asigna |
 | `PATCH /users/lideres/{id}` | ADMIN o PASTOR en alcance |
 | `DELETE /users/lideres/{id}` | ADMIN |
+| `GET /users/administradores` | ADMIN, lista cuentas sin credenciales |
+| `POST /users/administradores` | ADMIN, crea sin distrito ni iglesia |
+| `PATCH /users/administradores/{id}` | ADMIN, actualiza nombre, apellido o correo |
+| `DELETE /users/administradores/{id}` | ADMIN, baja lógica; bloquea auto-baja y baja del último ADMIN activo; revoca refresh |
 | `GET /hermanos` | Según alcance |
 | `POST /hermanos` | ADMIN, PASTOR o LIDER autorizado |
 | `GET /hermanos/{id}` | Según alcance |
@@ -850,12 +922,20 @@ SMTP_USER=usuario-smtp
 SMTP_PASSWORD=secreto-smtp
 SMTP_USE_TLS=true
 EMAILS_FROM_EMAIL=no-reply@example.com
+BOOTSTRAP_TOKEN=
 ```
 
 Las contraseñas se almacenan únicamente mediante Argon2id o bcrypt. Los
 refresh tokens se rotan, revocan al cerrar sesión y expiran automáticamente.
 La configuración SMTP usa secretos del entorno; nunca se incluyen credenciales
 reales en este archivo.
+`BOOTSTRAP_TOKEN` se mantiene vacío salvo durante la provisión inicial: genera
+un secreto aleatorio de al menos 32 caracteres, envíalo únicamente en el
+encabezado `X-Bootstrap-Token` de `POST /api/v1/auth/bootstrap-admin` y
+elimínalo del entorno inmediatamente después de crear el primer administrador.
+El endpoint no crea cuentas cuando ya existe cualquier `ADMIN`, incluso
+inactivo. Nunca guardes el secreto en el frontend, documentación con valores
+reales o control de versiones.
 
 ## Pruebas
 
@@ -954,5 +1034,9 @@ visitas y asignaciones preservado, bloqueo de nuevas visitas y rechazo de login
 para cuentas inactivas. El CRUD territorial ADMIN protege dependencias con
 conflictos y desactiva iglesias sin borrar historia; el cambio autenticado de
 contraseña verifica el valor actual y revoca sesiones refresh. El frontend
-Flutter sigue pendiente. Se mantiene `INSTRUCTIONS.md` como contrato funcional y
-se implementa en iteraciones TDD.
+Flutter ya implementa autenticación, territorios, equipo, hermanos, visitas,
+auditoría, ranking y perfil con pruebas de widgets y API. HU-11 implementa la
+provisión privada del primer ADMIN y el CRUD de cuentas administrativas en
+backend y Flutter, manteniendo separados los flujos de pastores y líderes y
+conservando la vista inicial existente del equipo. Se mantiene
+`INSTRUCTIONS.md` como contrato funcional y se implementa en iteraciones TDD.

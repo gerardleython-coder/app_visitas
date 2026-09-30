@@ -8,6 +8,7 @@ from app.application.authenticate_user import AuthenticateUser
 from app.application.audit import ListAudit
 from app.application.change_password import ChangePassword
 from app.application.manage_brothers import ManageBrothers
+from app.application.manage_administrators import AdministratorManagement, BootstrapAdministrator
 from app.application.create_operator import CreateOperator
 from app.application.password_recovery import RequestPasswordReset, ResetPassword
 from app.application.manage_operators import OperatorManagement
@@ -144,6 +145,27 @@ async def get_operator_management(
     return OperatorManagement(
         operators=SQLAlchemyOperatorRepository(session),
         churches=SQLAlchemyChurchRepository(session),
+        audit=SQLAlchemyAuditRepository(session),
+    )
+
+
+async def get_administrator_management(
+    session: AsyncSession = Depends(get_db_session),
+) -> AdministratorManagement:
+    return AdministratorManagement(
+        administrators=SQLAlchemyOperatorRepository(session),
+        passwords=Argon2PasswordService(),
+        audit=SQLAlchemyAuditRepository(session),
+        sessions=SQLAlchemyRefreshSessionRepository(session),
+    )
+
+
+async def get_bootstrap_administrator(
+    session: AsyncSession = Depends(get_db_session),
+) -> BootstrapAdministrator:
+    return BootstrapAdministrator(
+        administrators=SQLAlchemyOperatorRepository(session),
+        passwords=Argon2PasswordService(),
         audit=SQLAlchemyAuditRepository(session),
     )
 

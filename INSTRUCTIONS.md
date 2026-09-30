@@ -57,6 +57,13 @@ La jerarquía es `Distrito -> Iglesia -> Usuarios -> Hermanos y visitas`.
 - `ADMIN` debe seleccionar una iglesia perteneciente al distrito seleccionado.
 - Cada `PASTOR` y `LIDER` pertenece a una única iglesia activa y debe tener
   distrito e iglesia asignados.
+- `ADMIN` no requiere distrito ni iglesia. El primer `ADMIN` se provisiona una
+  sola vez mediante bootstrap privado; después, un `ADMIN` activo administra
+  las demás cuentas `ADMIN`.
+- Solo `ADMIN` puede listar, crear, editar y desactivar otros `ADMIN`. No puede
+  desactivarse a sí mismo ni desactivar al último `ADMIN` activo.
+- La desactivación de un `ADMIN` es lógica, queda auditada y revoca sus sesiones
+  refresh; la cuenta inactiva no puede iniciar sesión ni renovar sesión.
 - Una iglesia puede tener varios pastores y líderes activos.
 - `ADMIN` marca como máximo un pastor principal por iglesia para notificaciones.
 - Cada `HERMANO` debe tener nombre, apellido, teléfono, dirección, distrito,
@@ -78,6 +85,7 @@ La jerarquía es `Distrito -> Iglesia -> Usuarios -> Hermanos y visitas`.
 
 | Recurso | ADMIN | PASTOR | LIDER | HERMANO |
 | --- | --- | --- | --- | --- |
+| Administradores | CRUD de otras cuentas; no auto-baja ni baja del último ADMIN activo | Sin acceso | Sin acceso | Sin acceso |
 | Distritos e iglesias | CRUD global | Sin acceso | Sin acceso | Sin acceso |
 | Pastores | CRUD y asignación global | Sin acceso | Sin acceso | Sin acceso |
 | Líderes | CRUD y asignación global | Consultar y editar datos en su iglesia | Consultar perfil | Sin acceso |
@@ -161,6 +169,11 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 
 - `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
+- `POST /auth/bootstrap-admin` crea el primer `ADMIN` únicamente si no existe
+  ninguna cuenta con ese rol; requiere el secreto temporal `BOOTSTRAP_TOKEN` en
+  `X-Bootstrap-Token`, configurado fuera del repositorio. Si el secreto no está
+  configurado o ya existe un `ADMIN` (activo o inactivo), no permite crear otra
+  cuenta. Retira el secreto del entorno después del bootstrap.
 - `GET /auth/me` devuelve la identidad y asignación del usuario autenticado sin
   exponer contraseña, hash ni tokens.
 - `POST /auth/password/forgot` devuelve `202` sin revelar si el email existe;
@@ -175,6 +188,10 @@ La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 - CRUD y asignación de `/users/pastores`, solo `ADMIN`.
 - Creación y asignación de `/users/lideres`, solo `ADMIN`; `PASTOR` puede
   consultar y editar sus datos sin cambiar el rol.
+- CRUD de `/users/administradores`, solo `ADMIN`: crear sin asignación
+  territorial, listar, editar nombre/apellido/correo y desactivar lógicamente.
+  La baja impide la auto-desactivación y la desactivación del último `ADMIN`
+  activo; registra auditoría y revoca sesiones refresh.
 - CRUD de `/hermanos` según alcance; reasignación de líder por `ADMIN` o
   `PASTOR`.
 - CRUD de `/visitas` según alcance y reglas de estado.
@@ -215,10 +232,12 @@ observables, errores de autorización, límites de alcance y reglas de negocio;
 no deben describir detalles internos de SQLAlchemy, Flutter o la estructura de
 clases.
 
-Las nueve HU funcionales iniciales y sus escenarios completos están en la
-sección "Historias de usuario y aceptación" del `README.md`. Deben cubrir
-autenticación, asignación administrativa, hermanos, visitas, auditoría,
-notificaciones, ranking, recuperación de cuenta y desactivación lógica.
+Las HU-01 a HU-10 y sus escenarios completos están en la sección "Historias de
+usuario y aceptación" del `README.md`. La HU-11 añade la administración de
+cuentas `ADMIN`, incluido el bootstrap inicial privado. Las historias cubren
+autenticación, asignaciones administrativas, hermanos, visitas, auditoría,
+notificaciones, ranking, recuperación, desactivación lógica, administración
+territorial y cuentas administrativas.
 
 ### Relación con SOLID
 

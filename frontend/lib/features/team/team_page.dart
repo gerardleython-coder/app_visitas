@@ -36,6 +36,18 @@ class _TeamPageState extends State<TeamPage> {
       _error = null;
     });
     try {
+      if (widget.account.role == AppRole.admin && _role == 'ADMIN') {
+        final administrators = await widget.repository.administrators();
+        if (!mounted) return;
+        setState(() {
+          _operators = administrators;
+          _districts = const [];
+          _churches = const [];
+          _loading = false;
+        });
+        return;
+      }
+
       final operatorFuture = widget.repository.operators(_role);
       if (widget.account.role == AppRole.admin) {
         final response = await Future.wait<Object>([
@@ -78,12 +90,14 @@ class _TeamPageState extends State<TeamPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
           children: [
-            Text('Equipo pastoral',
+            Text(_role == 'ADMIN' ? 'Administradores' : 'Equipo pastoral',
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 5),
             Text(
               widget.account.role == AppRole.admin
-                  ? 'Cuentas y asignaciones de distrito'
+                  ? _role == 'ADMIN'
+                      ? 'Cuentas administrativas'
+                      : 'Cuentas y asignaciones de distrito'
                   : 'Líderes de tu iglesia',
               style: Theme.of(context)
                   .textTheme
@@ -94,6 +108,7 @@ class _TeamPageState extends State<TeamPage> {
             if (widget.account.role == AppRole.admin)
               SegmentedButton<String>(
                 segments: const [
+                  ButtonSegment(value: 'ADMIN', label: Text('Admins')),
                   ButtonSegment(value: 'PASTOR', label: Text('Pastores')),
                   ButtonSegment(value: 'LIDER', label: Text('Líderes')),
                 ],
@@ -119,8 +134,11 @@ class _TeamPageState extends State<TeamPage> {
                 child: FilledButton.icon(
                   onPressed: _loading ? null : _create,
                   icon: const Icon(LucideIcons.userRoundPlus),
-                  label:
-                      Text(_role == 'PASTOR' ? 'Nuevo pastor' : 'Nuevo líder'),
+                  label: Text(switch (_role) {
+                    'ADMIN' => 'Nuevo administrador',
+                    'PASTOR' => 'Nuevo pastor',
+                    _ => 'Nuevo líder',
+                  }),
                 ),
               ),
             ],
@@ -169,18 +187,28 @@ class _TeamPageState extends State<TeamPage> {
                     ),
                   ),
                   if (item.isPrimaryPastor) const _PrimaryBadge(),
-                  PopupMenuButton<String>(
-                    tooltip: 'Acciones de usuario',
-                    onSelected: (action) =>
-                        action == 'edit' ? _edit(item) : _deactivate(item),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                          value: 'edit', child: Text('Editar datos')),
-                      if (item.active && widget.account.role == AppRole.admin)
+                  if (item.role != 'ADMIN' || item.active)
+                    PopupMenuButton<String>(
+                      tooltip: 'Acciones de usuario',
+                      onSelected: (action) =>
+                          action == 'edit' ? _edit(item) : _deactivate(item),
+                      itemBuilder: (context) => [
                         const PopupMenuItem(
-                            value: 'deactivate', child: Text('Desactivar')),
-                    ],
-                  ),
+                            value: 'edit', child: Text('Editar datos')),
+                        if (item.active &&
+                            widget.account.role == AppRole.admin &&
+                            (item.role != 'ADMIN' ||
+                                (item.id != widget.account.id &&
+                                    _operators
+                                            .where((profile) =>
+                                                profile.role == 'ADMIN' &&
+                                                profile.active)
+                                            .length >
+                                        1)))
+                          const PopupMenuItem(
+                              value: 'deactivate', child: Text('Desactivar')),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -188,12 +216,14 @@ class _TeamPageState extends State<TeamPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _MetaChip(
-                      icon: LucideIcons.building2,
-                      label: _churchName(item.churchId)),
-                  _MetaChip(
-                      icon: LucideIcons.mapPinned,
-                      label: _districtName(item.districtId)),
+                  if (item.churchId != null)
+                    _MetaChip(
+                        icon: LucideIcons.building2,
+                        label: _churchName(item.churchId)),
+                  if (item.districtId != null)
+                    _MetaChip(
+                        icon: LucideIcons.mapPinned,
+                        label: _districtName(item.districtId)),
                   _MetaChip(
                     icon: item.active
                         ? LucideIcons.circleCheck
@@ -221,7 +251,7 @@ class _TeamPageState extends State<TeamPage> {
         ),
       );
 
-  String _churchName(String id) {
+  String _churchName(String? id) {
     for (final church in _churches) {
       if (church.id == id) return church.name;
     }
@@ -230,7 +260,7 @@ class _TeamPageState extends State<TeamPage> {
         : 'Iglesia';
   }
 
-  String _districtName(String id) {
+  String _districtName(String? id) {
     for (final district in _districts) {
       if (district.id == id) return district.name;
     }
@@ -240,6 +270,23 @@ class _TeamPageState extends State<TeamPage> {
   }
 
   Future<void> _create() async {
+    if (_role == 'ADMIN') {
+      final form = await _administratorForm();
+      if (form == null) return;
+      try {
+        await widget.repository.createAdministrator(
+          name: form.name,
+          surname: form.surname,
+          email: form.email,
+          password: form.password,
+        );
+        await _load();
+      } on Object catch (error) {
+        _message(apiErrorMessage(error));
+      }
+      return;
+    }
+
     final activeChurches = _churches.where((church) => church.active).toList();
     final availableDistricts = _districts
         .where((district) =>
@@ -258,8 +305,8 @@ class _TeamPageState extends State<TeamPage> {
         surname: form.surname,
         email: form.email,
         password: form.password,
-        districtId: form.districtId,
-        churchId: form.churchId,
+        districtId: form.districtId!,
+        churchId: form.churchId!,
       );
       await _load();
     } on Object catch (error) {
@@ -268,6 +315,22 @@ class _TeamPageState extends State<TeamPage> {
   }
 
   Future<void> _edit(OperatorProfile item) async {
+    if (item.role == 'ADMIN') {
+      final form = await _administratorForm(existing: item);
+      if (form == null) return;
+      try {
+        await widget.repository.updateAdministrator(item.id, {
+          'name': form.name,
+          'surname': form.surname,
+          'email': form.email,
+        });
+        await _load();
+      } on Object catch (error) {
+        _message(apiErrorMessage(error));
+      }
+      return;
+    }
+
     final form = await _operatorForm(existing: item);
     if (form == null) return;
     try {
@@ -280,6 +343,87 @@ class _TeamPageState extends State<TeamPage> {
     } on Object catch (error) {
       _message(apiErrorMessage(error));
     }
+  }
+
+  Future<_OperatorForm?> _administratorForm({
+    OperatorProfile? existing,
+  }) async {
+    var name = existing?.name ?? '';
+    var surname = existing?.surname ?? '';
+    var email = existing?.email ?? '';
+    var password = '';
+    final result = await showDialog<_OperatorForm>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, refresh) => AlertDialog(
+          title: Text(existing == null
+              ? 'Nuevo administrador'
+              : 'Editar administrador'),
+          content: SizedBox(
+            width: 460,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  initialValue: name,
+                  onChanged: (value) => name = value,
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  initialValue: surname,
+                  onChanged: (value) => surname = value,
+                  decoration: const InputDecoration(labelText: 'Apellido'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  initialValue: email,
+                  onChanged: (value) => email = value,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Correo'),
+                ),
+                if (existing == null) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    initialValue: password,
+                    onChanged: (value) => password = value,
+                    obscureText: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Contraseña inicial'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (name.trim().isEmpty ||
+                    surname.trim().isEmpty ||
+                    !email.contains('@') ||
+                    (existing == null && password.isEmpty)) return;
+                FocusScope.of(dialogContext).unfocus();
+                Navigator.pop(
+                  dialogContext,
+                  _OperatorForm(
+                    name: name.trim(),
+                    surname: surname.trim(),
+                    email: email.trim(),
+                    password: password,
+                  ),
+                );
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    return result;
   }
 
   Future<_OperatorForm?> _operatorForm({OperatorProfile? existing}) async {
@@ -398,7 +542,11 @@ class _TeamPageState extends State<TeamPage> {
   Future<void> _deactivate(OperatorProfile item) async {
     if (!await _confirm('Desactivar ${item.fullName}?')) return;
     try {
-      await widget.repository.deactivateOperator(item.id, item.role);
+      if (item.role == 'ADMIN') {
+        await widget.repository.deactivateAdministrator(item.id);
+      } else {
+        await widget.repository.deactivateOperator(item.id, item.role);
+      }
       await _load();
     } on Object catch (error) {
       _message(apiErrorMessage(error));
@@ -406,11 +554,13 @@ class _TeamPageState extends State<TeamPage> {
   }
 
   Future<void> _setPrimary(OperatorProfile item) async {
+    final churchId = item.churchId;
+    if (churchId == null) return;
     final accepted = await _confirm(
         'Asignar a ${item.fullName} como pastor principal de ${_churchName(item.churchId)}?');
     if (!accepted) return;
     try {
-      await widget.repository.setPrimaryPastor(item.churchId, item.id);
+      await widget.repository.setPrimaryPastor(churchId, item.id);
       await _load();
     } on Object catch (error) {
       _message(apiErrorMessage(error));
@@ -460,16 +610,16 @@ class _OperatorForm {
     required this.surname,
     required this.email,
     required this.password,
-    required this.districtId,
-    required this.churchId,
+    this.districtId,
+    this.churchId,
   });
 
   final String name;
   final String surname;
   final String email;
   final String password;
-  final String districtId;
-  final String churchId;
+  final String? districtId;
+  final String? churchId;
 }
 
 class _MetaChip extends StatelessWidget {

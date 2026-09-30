@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.authentication import UserAccount, UserRole
@@ -32,6 +32,70 @@ class SQLAlchemyChurchRepository:
 class SQLAlchemyOperatorRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def lock_bootstrap(self) -> None:
+        if self._session.get_bind().dialect.name == "postgresql":
+            await self._session.execute(text("SELECT pg_advisory_xact_lock(1547311916, 441811)"))
+
+    async def count_administrators(self) -> int:
+        count = await self._session.scalar(
+            select(func.count(UserModel.id)).where(UserModel.role == UserRole.ADMIN)
+        )
+        return int(count or 0)
+
+    async def create_administrator(
+        self,
+        *,
+        name: str,
+        surname: str,
+        email: str,
+        password_hash: str,
+    ) -> UserAccount:
+        user = UserModel(
+            name=name,
+            surname=surname,
+            email=email,
+            password_hash=password_hash,
+            role=UserRole.ADMIN,
+            active=True,
+        )
+        self._session.add(user)
+        await self._session.flush()
+        return UserAccount(
+            id=user.id,
+            email=email,
+            password_hash=password_hash,
+            role=UserRole.ADMIN,
+            active=True,
+        )
+
+    async def list_administrators(self) -> list[OperatorProfile]:
+        result = await self._session.scalars(
+            select(UserModel)
+            .where(UserModel.role == UserRole.ADMIN)
+            .order_by(UserModel.surname, UserModel.name, UserModel.id)
+        )
+        return [self._to_operator(user) for user in result.all()]
+
+    async def lock_administrators(self) -> None:
+        await self._session.scalars(
+            select(UserModel.id)
+            .where(UserModel.role == UserRole.ADMIN)
+            .order_by(UserModel.id)
+            .with_for_update()
+        )
+
+    async def has_active_administrator(self, *, excluding_id: UUID) -> bool:
+        administrator_id = await self._session.scalar(
+            select(UserModel.id)
+            .where(
+                UserModel.role == UserRole.ADMIN,
+                UserModel.active.is_(True),
+                UserModel.id != excluding_id,
+            )
+            .limit(1)
+        )
+        return administrator_id is not None
 
     async def create_operator(
         self,

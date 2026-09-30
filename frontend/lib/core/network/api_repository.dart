@@ -148,6 +148,43 @@ class ApiRepository implements SessionGateway {
       'users/${role == 'PASTOR' ? 'pastores' : 'lideres'}',
       OperatorProfile.fromJson);
 
+  Future<List<OperatorProfile>> administrators() =>
+      _list('users/administradores', OperatorProfile.fromJson);
+
+  Future<OperatorProfile> createAdministrator({
+    required String name,
+    required String surname,
+    required String email,
+    required String password,
+  }) async =>
+      OperatorProfile.fromJson(
+        (await _dio.post<Map<String, dynamic>>(
+          'users/administradores',
+          data: {
+            'name': name,
+            'surname': surname,
+            'email': email,
+            'password': password,
+          },
+        ))
+            .data!,
+      );
+
+  Future<OperatorProfile> updateAdministrator(
+    String id,
+    Map<String, dynamic> changes,
+  ) async =>
+      OperatorProfile.fromJson(
+        (await _dio.patch<Map<String, dynamic>>(
+          'users/administradores/$id',
+          data: changes,
+        ))
+            .data!,
+      );
+
+  Future<void> deactivateAdministrator(String id) =>
+      _dio.delete<void>('users/administradores/$id');
+
   Future<OperatorProfile> createOperator({
     required String role,
     required String name,

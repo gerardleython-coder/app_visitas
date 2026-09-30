@@ -97,8 +97,8 @@ class OperatorProfile {
   final String email;
   final String role;
   final bool active;
-  final String districtId;
-  final String churchId;
+  final String? districtId;
+  final String? churchId;
   final String? phone;
   final String? address;
   final bool isPrimaryPastor;
@@ -113,8 +113,8 @@ class OperatorProfile {
         email: json['email'] as String,
         role: json['role'] as String,
         active: json['active'] as bool,
-        districtId: json['district_id'] as String,
-        churchId: json['church_id'] as String,
+        districtId: json['district_id'] as String?,
+        churchId: json['church_id'] as String?,
         phone: json['phone'] as String?,
         address: json['address'] as String?,
         isPrimaryPastor: json['is_primary_pastor'] as bool? ?? false,

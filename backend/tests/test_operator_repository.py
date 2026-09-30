@@ -70,6 +70,36 @@ async def test_operator_repository_persists_territorial_assignment() -> None:
         await engine.dispose()
 
 
+async def test_operator_repository_persists_admin_without_territory() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_factory() as session:
+            account = await SQLAlchemyOperatorRepository(session).create_administrator(
+                name="Ana",
+                surname="Admin",
+                email="ana@example.test",
+                password_hash="argon2-test-hash",
+            )
+            await session.commit()
+            persisted = await session.get(UserModel, account.id)
+            listed = await SQLAlchemyOperatorRepository(session).list_administrators()
+
+        assert account.role is UserRole.ADMIN
+        assert persisted is not None
+        assert persisted.role is UserRole.ADMIN
+        assert persisted.district_id is None
+        assert persisted.church_id is None
+        assert listed[0].id == account.id
+        assert listed[0].district_id is None
+        assert listed[0].church_id is None
+    finally:
+        await engine.dispose()
+
+
 async def test_database_rejects_operator_with_mismatched_district_and_church() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
 

@@ -1,16 +1,19 @@
-# app_visitas
+# AppVisitas Flutter
 
-A new Flutter project.
+Cliente Flutter para la API de AppVisitas. Implementa autenticación, perfil,
+administración territorial, equipo pastoral, hermanos, visitas, auditoría y
+rankings.
 
-## Getting Started
+## Desarrollo
 
-This project is a starting point for a Flutter application.
+Requiere Flutter 3.x. Desde esta carpeta:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter test
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5000 --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Configura la API y PostgreSQL siguiendo el [README del proyecto](../README.md)
+y [INSTRUCTIONS.md](../INSTRUCTIONS.md). Las operaciones protegidas requieren
+una sesión autenticada; la autorización efectiva siempre se valida en backend.

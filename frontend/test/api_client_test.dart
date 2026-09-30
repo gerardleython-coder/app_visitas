@@ -238,6 +238,88 @@ void main() {
     client.dio.close(force: true);
   });
 
+  test('administrator CRUD uses its isolated API routes', () async {
+    final store = _MemoryStore(accessToken: 'discardable-access');
+    final adapter = _ScriptedAdapter((request) {
+      if (request.method == 'GET') {
+        expect(request.uri.path, '/api/v1/users/administradores');
+        return _jsonResponse(200, [
+          {
+            'id': 'admin-1',
+            'name': 'Ana',
+            'surname': 'Admin',
+            'email': 'ana@example.test',
+            'role': 'ADMIN',
+            'active': true,
+            'district_id': null,
+            'church_id': null,
+          },
+        ]);
+      }
+      if (request.method == 'POST') {
+        expect(request.uri.path, '/api/v1/users/administradores');
+        expect(request.data, {
+          'name': 'Luis',
+          'surname': 'Admin',
+          'email': 'luis@example.test',
+          'password': 'private-password',
+        });
+        return _jsonResponse(201, {
+          'id': 'admin-2',
+          'name': 'Luis',
+          'surname': 'Admin',
+          'email': 'luis@example.test',
+          'role': 'ADMIN',
+          'active': true,
+          'district_id': null,
+          'church_id': null,
+        });
+      }
+      if (request.method == 'PATCH') {
+        expect(request.uri.path, '/api/v1/users/administradores/admin-2');
+        expect(request.data, {'name': 'Luis Alberto'});
+        return _jsonResponse(200, {
+          'id': 'admin-2',
+          'name': 'Luis Alberto',
+          'surname': 'Admin',
+          'email': 'luis@example.test',
+          'role': 'ADMIN',
+          'active': true,
+          'district_id': null,
+          'church_id': null,
+        });
+      }
+      expect(request.method, 'DELETE');
+      expect(request.uri.path, '/api/v1/users/administradores/admin-2');
+      return _jsonResponse(204, null);
+    });
+    final client = _apiClient(store, adapter);
+    final repository = ApiRepository(client: client, sessionStore: store);
+
+    final listed = await repository.administrators();
+    final created = await repository.createAdministrator(
+      name: 'Luis',
+      surname: 'Admin',
+      email: 'luis@example.test',
+      password: 'private-password',
+    );
+    final updated = await repository.updateAdministrator(created.id, {
+      'name': 'Luis Alberto',
+    });
+    await repository.deactivateAdministrator(updated.id);
+
+    expect(listed.single.districtId, isNull);
+    expect(listed.single.churchId, isNull);
+    expect(updated.name, 'Luis Alberto');
+    expect(adapter.requests.map((request) => request.method), [
+      'GET',
+      'POST',
+      'PATCH',
+      'DELETE',
+    ]);
+    client.dio.close(force: true);
+  });
+
   test('brother CRUD preserves required church and leader assignments',
       () async {
     final store = _MemoryStore(accessToken: 'discardable-access');

@@ -11,3 +11,4 @@ class SecuritySettings(BaseSettings):
     )
 
     secret_key: str | None = None
+    bootstrap_token: str | None = None
