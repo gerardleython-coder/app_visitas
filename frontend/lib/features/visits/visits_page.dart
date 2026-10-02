@@ -469,7 +469,10 @@ class _VisitsPageState extends State<VisitsPage> {
                 Navigator.pop(dialogContext, reason.text.trim());
               }
             },
-            style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.forestSoft,
+              foregroundColor: AppColors.text,
+            ),
             child: const Text('Cancelar visita'),
           ),
         ],

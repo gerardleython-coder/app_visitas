@@ -185,6 +185,14 @@ class ApiRepository implements SessionGateway {
   Future<void> deactivateAdministrator(String id) =>
       _dio.delete<void>('users/administradores/$id');
 
+  Future<OperatorProfile> reactivateAdministrator(String id) async =>
+      OperatorProfile.fromJson(
+        (await _dio.post<Map<String, dynamic>>(
+          'users/administradores/$id/reactivar',
+        ))
+            .data!,
+      );
+
   Future<OperatorProfile> createOperator({
     required String role,
     required String name,

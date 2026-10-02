@@ -17,6 +17,7 @@ class TeamPage extends StatefulWidget {
 
 class _TeamPageState extends State<TeamPage> {
   String _role = 'LIDER';
+  bool _showInactiveAdministrators = false;
   String _search = '';
   List<OperatorProfile> _operators = const [];
   List<District> _districts = const [];
@@ -79,10 +80,13 @@ class _TeamPageState extends State<TeamPage> {
     }
   }
 
-  List<OperatorProfile> get _visible => _operators
-      .where((item) =>
-          '${item.fullName} ${item.email}'.toLowerCase().contains(_search))
-      .toList(growable: false);
+  List<OperatorProfile> get _visible => _operators.where((item) {
+        final matchesSearch =
+            '${item.fullName} ${item.email}'.toLowerCase().contains(_search);
+        final matchesAdministratorStatus =
+            _role != 'ADMIN' || item.active != _showInactiveAdministrators;
+        return matchesSearch && matchesAdministratorStatus;
+      }).toList(growable: false);
 
   @override
   Widget build(BuildContext context) => RefreshIndicator(
@@ -118,6 +122,19 @@ class _TeamPageState extends State<TeamPage> {
                   _load();
                 },
               ),
+            if (widget.account.role == AppRole.admin && _role == 'ADMIN') ...[
+              const SizedBox(height: 10),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Activos')),
+                  ButtonSegment(value: true, label: Text('Inactivos')),
+                ],
+                selected: {_showInactiveAdministrators},
+                onSelectionChanged: (selection) => setState(
+                  () => _showInactiveAdministrators = selection.first,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               onChanged: (value) =>
@@ -187,14 +204,30 @@ class _TeamPageState extends State<TeamPage> {
                     ),
                   ),
                   if (item.isPrimaryPastor) const _PrimaryBadge(),
-                  if (item.role != 'ADMIN' || item.active)
+                  if (item.role != 'ADMIN' ||
+                      item.active ||
+                      widget.account.role == AppRole.admin)
                     PopupMenuButton<String>(
                       tooltip: 'Acciones de usuario',
-                      onSelected: (action) =>
-                          action == 'edit' ? _edit(item) : _deactivate(item),
+                      onSelected: (action) {
+                        switch (action) {
+                          case 'edit':
+                            _edit(item);
+                          case 'reactivate':
+                            _reactivate(item);
+                          case 'deactivate':
+                            _deactivate(item);
+                        }
+                      },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
-                            value: 'edit', child: Text('Editar datos')),
+                        if (item.role != 'ADMIN' || item.active)
+                          const PopupMenuItem(
+                              value: 'edit', child: Text('Editar datos')),
+                        if (item.role == 'ADMIN' && !item.active)
+                          const PopupMenuItem(
+                            value: 'reactivate',
+                            child: Text('Reactivar'),
+                          ),
                         if (item.active &&
                             widget.account.role == AppRole.admin &&
                             (item.role != 'ADMIN' ||
@@ -547,6 +580,21 @@ class _TeamPageState extends State<TeamPage> {
       } else {
         await widget.repository.deactivateOperator(item.id, item.role);
       }
+      await _load();
+    } on Object catch (error) {
+      _message(apiErrorMessage(error));
+    }
+  }
+
+  Future<void> _reactivate(OperatorProfile item) async {
+    if (!await _confirm(
+        'Reactivar ${item.fullName}? Podrá volver a iniciar sesión.')) {
+      return;
+    }
+    try {
+      await widget.repository.reactivateAdministrator(item.id);
+      if (!mounted) return;
+      setState(() => _showInactiveAdministrators = false);
       await _load();
     } on Object catch (error) {
       _message(apiErrorMessage(error));

@@ -160,7 +160,6 @@ class _OverviewPageState extends State<OverviewPage> {
                         count: '$scheduled',
                         label: 'Programadas',
                         detail: '$completed completadas',
-                        accent: true,
                       ),
                     ],
                   ),
@@ -227,14 +226,12 @@ class _MetricTile extends StatelessWidget {
     required this.count,
     required this.label,
     required this.detail,
-    this.accent = false,
   });
 
   final IconData icon;
   final String count;
   final String label;
   final String detail;
-  final bool accent;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -248,11 +245,10 @@ class _MetricTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color:
-                      accent ? AppColors.mint.withOpacity(.5) : AppColors.soft,
+                  color: AppColors.forestSoft,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: AppColors.forestSoft, size: 19),
+                child: Icon(icon, color: AppColors.text, size: 19),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -257,6 +257,20 @@ void main() {
         ]);
       }
       if (request.method == 'POST') {
+        if (request.uri.path.endsWith('/reactivar')) {
+          expect(request.uri.path,
+              '/api/v1/users/administradores/admin-2/reactivar');
+          return _jsonResponse(200, {
+            'id': 'admin-2',
+            'name': 'Luis Alberto',
+            'surname': 'Admin',
+            'email': 'luis@example.test',
+            'role': 'ADMIN',
+            'active': true,
+            'district_id': null,
+            'church_id': null,
+          });
+        }
         expect(request.uri.path, '/api/v1/users/administradores');
         expect(request.data, {
           'name': 'Luis',
@@ -307,15 +321,18 @@ void main() {
       'name': 'Luis Alberto',
     });
     await repository.deactivateAdministrator(updated.id);
+    final reactivated = await repository.reactivateAdministrator(updated.id);
 
     expect(listed.single.districtId, isNull);
     expect(listed.single.churchId, isNull);
     expect(updated.name, 'Luis Alberto');
+    expect(reactivated.active, isTrue);
     expect(adapter.requests.map((request) => request.method), [
       'GET',
       'POST',
       'PATCH',
       'DELETE',
+      'POST',
     ]);
     client.dio.close(force: true);
   });

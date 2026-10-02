@@ -12,12 +12,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:app_visitas/core/models/api_models.dart';
 import 'package:app_visitas/core/network/api_repository.dart';
 import 'package:app_visitas/core/session/session_cubit.dart';
 import 'package:app_visitas/core/session/session_store.dart';
 import 'package:app_visitas/core/time/bogota_time.dart';
 import 'package:app_visitas/features/auth/login_screen.dart';
+import 'package:app_visitas/features/home/overview_page.dart';
+import 'package:app_visitas/features/profile/profile_page.dart';
 import 'package:app_visitas/features/team/team_page.dart';
 import 'package:app_visitas/features/territories/territories_page.dart';
 import 'package:app_visitas/features/visits/visits_page.dart';
@@ -39,6 +42,33 @@ class _MemoryStore implements SessionStore {
 
   @override
   Future<void> clear() async {}
+}
+
+class _SessionHome extends StatelessWidget {
+  const _SessionHome({required this.repository});
+
+  final ApiRepository repository;
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<SessionCubit, SessionState>(builder: (context, state) {
+        if (state.status != SessionStatus.signedIn) return const LoginScreen();
+        return Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => ProfilePage(
+                    account: state.account!,
+                    repository: repository,
+                  ),
+                ),
+              ),
+              child: const Text('Abrir perfil'),
+            ),
+          ),
+        );
+      });
 }
 
 class _SessionFake implements SessionGateway {
@@ -79,6 +109,21 @@ const _account = CurrentAccount(
 );
 
 void main() {
+  test('app theme uses the requested blue, white, green, and gold palette', () {
+    const blue = Color(0xFF003B5C);
+    const white = Color(0xFFFFFFFF);
+    const gold = Color(0xFFD4AF37);
+    const green = Color(0xFF014421);
+
+    expect(AppColors.canvas, blue);
+    expect(AppColors.surface, blue);
+    expect(AppColors.text, white);
+    expect(AppColors.muted, white);
+    expect(AppColors.forestSoft, green);
+    expect(AppColors.gold, gold);
+    expect(AppColors.pine, gold);
+  });
+
   testWidgets('login is real, role is not guessed from email', (tester) async {
     final gateway = _SessionFake();
     final session = SessionCubit(gateway: gateway, store: _MemoryStore());
@@ -98,6 +143,131 @@ void main() {
     expect(find.text('Simulación de perfil'), findsNothing);
 
     await session.close();
+  });
+
+  testWidgets('sign-in button uses gold', (tester) async {
+    final session =
+        SessionCubit(gateway: _SessionFake(), store: _MemoryStore());
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: session,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final buttonFinder = find.ancestor(
+      of: find.text('Ingresar'),
+      matching: find.byWidgetPredicate((widget) => widget is ButtonStyleButton),
+    );
+    final button = tester.widget<ButtonStyleButton>(buttonFinder.first);
+    expect(
+      button.style?.backgroundColor?.resolve({}),
+      const Color(0xFFD4AF37),
+    );
+    await session.close();
+  });
+
+  testWidgets('closing a profile session returns to the login screen',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    final session =
+        SessionCubit(gateway: _SessionFake(), store: _MemoryStore());
+    await tester.pumpWidget(BlocProvider.value(
+      value: session,
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: _SessionHome(repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await session.signIn('admin@example.test', 'password');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir perfil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cerrar sesión'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Iniciar sesión'), findsOneWidget);
+    await session.close();
+  });
+
+  testWidgets('successful password change closes profile and returns to login',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    final session =
+        SessionCubit(gateway: _SessionFake(), store: _MemoryStore());
+    await tester.pumpWidget(BlocProvider.value(
+      value: session,
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: _SessionHome(repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await session.signIn('admin@example.test', 'password');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abrir perfil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cambiar contraseña'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), 'current-password');
+    await tester.enterText(find.byType(TextField).at(1), 'new-password');
+    await tester.enterText(find.byType(TextField).at(2), 'new-password');
+    await tester.tap(find.text('Actualizar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Iniciar sesión'), findsOneWidget);
+    await session.close();
+  });
+
+  testWidgets('home metric icons use white consistently', (tester) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _ApiRepositoryMock();
+    when(() => repository.districts()).thenAnswer((_) async => const []);
+    when(() => repository.churches()).thenAnswer((_) async => const []);
+    when(() => repository.operators(any())).thenAnswer((_) async => const []);
+    when(() => repository.brothers()).thenAnswer((_) async => const []);
+    when(() => repository.visits()).thenAnswer((_) async => const []);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: OverviewPage(account: _account, repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    for (final icon in [
+      LucideIcons.map,
+      LucideIcons.church,
+      LucideIcons.users,
+      LucideIcons.contactRound,
+      LucideIcons.calendarDays,
+    ]) {
+      final iconFinder = find.byIcon(icon).first;
+      expect(tester.widget<Icon>(iconFinder).color, const Color(0xFFFFFFFF));
+      final tileBackground = find
+          .ancestor(
+            of: iconFinder,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Container &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration! as BoxDecoration).color != null,
+            ),
+          )
+          .first;
+      final box =
+          tester.widget<Container>(tileBackground).decoration! as BoxDecoration;
+      expect(box.color, const Color(0xFF014421));
+    }
   });
 
   testWidgets('login errors are shown above the form', (tester) async {
@@ -358,6 +528,81 @@ void main() {
     expect(find.byType(PopupMenuButton<String>), findsNothing);
   });
 
+  testWidgets('admin can reactivate an inactive account from its own view',
+      (tester) async {
+    final repository = _ApiRepositoryMock();
+    const ownAdmin = OperatorProfile(
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'Ana',
+      surname: 'Admin',
+      email: 'admin@example.test',
+      role: 'ADMIN',
+      active: true,
+      districtId: null,
+      churchId: null,
+    );
+    const inactiveAdmin = OperatorProfile(
+      id: 'admin-inactive',
+      name: 'Luis',
+      surname: 'Admin',
+      email: 'luis@example.test',
+      role: 'ADMIN',
+      active: false,
+      districtId: null,
+      churchId: null,
+    );
+    const activeAgain = OperatorProfile(
+      id: 'admin-inactive',
+      name: 'Luis',
+      surname: 'Admin',
+      email: 'luis@example.test',
+      role: 'ADMIN',
+      active: true,
+      districtId: null,
+      churchId: null,
+    );
+    var listCalls = 0;
+    when(() => repository.administrators()).thenAnswer((_) async {
+      listCalls++;
+      return [ownAdmin, listCalls == 1 ? inactiveAdmin : activeAgain];
+    });
+    when(() => repository.operators(any())).thenAnswer((_) async => const []);
+    when(() => repository.districts()).thenAnswer((_) async => const []);
+    when(() => repository.churches()).thenAnswer((_) async => const []);
+    when(() => repository.reactivateAdministrator('admin-inactive'))
+        .thenAnswer((_) async => activeAgain);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: TeamPage(account: _account, repository: repository),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Admins'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inactivos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Luis Admin'), findsOneWidget);
+    expect(find.text('Inactivo'), findsOneWidget);
+    await tester.tap(find.byType(PopupMenuButton<String>).last);
+    await tester.pumpAndSettle();
+    expect(find.text('Reactivar'), findsOneWidget);
+    await tester.tap(find.text('Reactivar'));
+    await tester.pumpAndSettle();
+    expect(
+        find.textContaining('Podrá volver a iniciar sesión'), findsOneWidget);
+    await tester.tap(find.text('Confirmar'));
+    await tester.pumpAndSettle();
+
+    verify(() => repository.reactivateAdministrator('admin-inactive'))
+        .called(1);
+    expect(find.text('Activos'), findsOneWidget);
+    expect(find.text('Luis Admin'), findsOneWidget);
+    expect(find.text('Activo'), findsNWidgets(2));
+  });
+
   testWidgets('team displays a recoverable error when loading fails',
       (tester) async {
     final repository = _ApiRepositoryMock();
@@ -472,6 +717,9 @@ void main() {
     expect(find.text('Historial de la visita'), findsOneWidget);
     expect(find.text('Visita reprogramada'), findsOneWidget);
     expect(find.textContaining('Cambio coordinado'), findsOneWidget);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Historial de la visita'), findsNothing);
 
     const leader = CurrentAccount(
       id: 'leader-1',

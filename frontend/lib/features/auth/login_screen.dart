@@ -201,6 +201,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? 'Ingresando'
                           : 'Ingresar',
                     ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.gold,
+                      foregroundColor: AppColors.canvas,
+                    ),
                   ),
                 ),
               ],
