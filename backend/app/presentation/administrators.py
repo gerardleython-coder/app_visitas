@@ -224,3 +224,19 @@ async def deactivate_administrator(
     except DomainException as error:
         _raise_domain_http_error(error)
     return Response(status_code=204)
+
+
+@router.post(
+    "/users/administradores/{administrator_id}/reactivar",
+    response_model=AdministratorResponse,
+)
+async def reactivate_administrator(
+    administrator_id: UUID,
+    actor: UserAccount = Depends(require_roles(UserRole.ADMIN)),
+    management: AdministratorManagement = Depends(get_administrator_management),
+) -> AdministratorResponse:
+    try:
+        administrator = await management.reactivate(actor, administrator_id)
+    except DomainException as error:
+        _raise_domain_http_error(error)
+    return _response(administrator)

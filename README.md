@@ -84,7 +84,7 @@ principal.
 
 | Recurso | ADMIN | PASTOR | LIDER | HERMANO |
 | --- | --- | --- | --- | --- |
-| Administradores | CRUD de otras cuentas; no auto-baja ni baja del último ADMIN activo | - | - | - |
+| Administradores | CRUD de otras cuentas y reactivación de inactivas; no auto-baja ni baja del último ADMIN activo | - | - | - |
 | Distritos e iglesias | CRUD global | - | - | - |
 | Pastores | CRUD y asignación global | - | - | - |
 | Líderes | Crear, asignar, editar y desactivar globalmente | Consultar y editar en su iglesia | Consultar perfil | - |
@@ -98,6 +98,10 @@ El backend debe validar siempre el rol, alcance y estado activo. La interfaz no
 puede ser la única barrera de autorización. Las operaciones `DELETE` sobre
 usuarios, hermanos y visitas aplican desactivación lógica o cierre controlado;
 no eliminan físicamente información que sea necesaria para la auditoría.
+Las cuentas ADMIN inactivas conservan identidad e historial, aparecen en la vista
+Inactivos y solo un ADMIN activo puede reactivarlas. La reactivación es un
+cambio reversible de estado, queda auditado y no restaura sesiones refresh
+revocadas; el usuario debe iniciar sesión de nuevo.
 
 ## Modelo de datos
 
@@ -828,6 +832,69 @@ Característica: Administración de cuentas ADMIN
         Y no se modifica ninguna cuenta
 ```
 
+### HU-12: Eliminación irreversible de datos personales de un ADMIN
+
+**Como** `ADMIN`, **quiero** eliminar irreversiblemente los datos personales de
+otra cuenta `ADMIN`, **para** retirar su información identificable y bloquear
+todo acceso sin romper las relaciones ni la trazabilidad histórica.
+
+Esta operación es distinta de `DELETE /users/administradores/{id}`, que sigue
+siendo desactivación lógica. La eliminación definitiva anonimiza; no borra
+físicamente la fila de usuario ni los eventos de auditoría. La identidad técnica
+estable se conserva únicamente como tombstone para las relaciones históricas.
+
+```gherkin
+Característica: Eliminación irreversible de datos personales de un ADMIN
+
+    Escenario: Eliminar datos personales de otro administrador
+        Dado un ADMIN activo autenticado y otra cuenta ADMIN
+        Cuando confirma la eliminación irreversible de sus datos personales
+        Entonces se anonimiza la información identificable del perfil
+        Y se eliminan los datos personales de los snapshots de auditoría
+        Y se conservan los identificadores, fechas, acciones y relaciones históricas
+        Y se registra un evento de eliminación sin incluir datos personales
+        Y se revocan todas las sesiones y tokens de recuperación de la cuenta
+        Y la cuenta no puede iniciar sesión ni recuperar acceso
+
+    Escenario: Impedir la auto-eliminación
+        Dado un ADMIN activo autenticado
+        Cuando intenta eliminar sus propios datos personales
+        Entonces la operación es rechazada
+        Y el perfil, las sesiones y la auditoría permanecen sin cambios
+
+    Escenario: Impedir eliminar al último ADMIN activo
+        Dado que la operación dejaría el sistema sin un ADMIN activo
+        Cuando se confirma la eliminación de datos personales
+        Entonces la operación es rechazada
+        Y la cuenta y sus datos permanecen sin cambios
+
+    Escenario: Restringir la operación a ADMIN
+        Dado un usuario con rol PASTOR o LIDER
+        Cuando intenta eliminar datos personales de un ADMIN
+        Entonces recibe una respuesta de permisos insuficientes
+        Y no se modifica ninguna cuenta ni evento
+
+    Escenario: Preservar trazabilidad sin exponer datos eliminados
+        Dado un ADMIN cuyos datos personales fueron eliminados
+        Cuando un ADMIN autorizado consulta eventos históricos relacionados
+        Entonces conserva la secuencia, fecha, acción e identificadores de auditoría
+        Y no se muestran el nombre, correo u otros datos personales eliminados
+
+    Escenario: Mantener atomicidad ante un fallo de anonimización
+        Dado una solicitud válida de eliminación irreversible
+        Cuando no se pueden anonimizar todos los datos personales del alcance
+        Entonces la operación completa se revierte
+        Y no queda una eliminación parcial ni se informa como exitosa
+```
+
+La inmutabilidad de auditoría requiere una excepción estrecha y revisada para
+anonimizar únicamente campos personales de eventos relacionados con la cuenta;
+los identificadores, actores, fechas, acciones y demás eventos no se actualizan
+ni se eliminan. El diseño debe conservar también las referencias foráneas y
+definir cuándo expiran copias de seguridad cifradas que aún contengan esos datos.
+No se debe presentar la operación como completa antes de resolver esa política
+de retención.
+
 ### Criterios de diseño para las HU
 
 - **INVEST:** cada HU debe tener un único valor de negocio, alcance acotado,
@@ -873,6 +940,8 @@ Prefijo: `/api/v1`.
 | `POST /users/administradores` | ADMIN, crea sin distrito ni iglesia |
 | `PATCH /users/administradores/{id}` | ADMIN, actualiza nombre, apellido o correo |
 | `DELETE /users/administradores/{id}` | ADMIN, baja lógica; bloquea auto-baja y baja del último ADMIN activo; revoca refresh |
+| `POST /users/administradores/{id}/reactivar` | ADMIN, reactiva una cuenta inactiva sin restaurar refresh tokens revocados |
+| `POST /users/administradores/{id}/eliminacion-definitiva` | ADMIN, anonimiza datos personales de otro administrador sin borrar físicamente la identidad referencial; conserva la auditoría no identificable y revoca sesiones/tokens |
 | `GET /hermanos` | Según alcance |
 | `POST /hermanos` | ADMIN, PASTOR o LIDER autorizado |
 | `GET /hermanos/{id}` | Según alcance |
@@ -1040,3 +1109,7 @@ provisión privada del primer ADMIN y el CRUD de cuentas administrativas en
 backend y Flutter, manteniendo separados los flujos de pastores y líderes y
 conservando la vista inicial existente del equipo. Se mantiene
 `INSTRUCTIONS.md` como contrato funcional y se implementa en iteraciones TDD.
+HU-12 especifica la futura anonimización irreversible de datos personales de
+una cuenta ADMIN, sin borrado físico de su identidad referencial ni pérdida de
+eventos de auditoría. Está pendiente de implementación, de definir la excepción
+acotada a la inmutabilidad de snapshots y de aprobar la retención de respaldos.

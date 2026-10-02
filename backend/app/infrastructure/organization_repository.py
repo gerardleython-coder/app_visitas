@@ -218,6 +218,14 @@ class SQLAlchemyOperatorRepository:
         await self._session.flush()
         return self._to_operator(user)
 
+    async def activate_operator(self, operator_id: UUID) -> OperatorProfile | None:
+        user = await self._session.get(UserModel, operator_id)
+        if user is None:
+            return None
+        user.active = True
+        await self._session.flush()
+        return self._to_operator(user)
+
     @staticmethod
     def _to_operator(user: UserModel) -> OperatorProfile:
         if user.email is None:

@@ -1,53 +1,53 @@
 ---
 name: Pastoral Serenity
 colors:
-  surface: '#f6fbf5'
-  surface-dim: '#d7dbd6'
-  surface-bright: '#f6fbf5'
-  surface-container-lowest: '#ffffff'
-  surface-container-low: '#f0f5f0'
-  surface-container: '#ebefea'
-  surface-container-high: '#e5e9e4'
-  surface-container-highest: '#dfe4df'
-  on-surface: '#181d1a'
-  on-surface-variant: '#414844'
-  inverse-surface: '#2c322e'
-  inverse-on-surface: '#edf2ed'
-  outline: '#717973'
-  outline-variant: '#c1c8c2'
-  surface-tint: '#3f6653'
-  primary: '#012d1d'
+  surface: '#003B5C'
+  surface-dim: '#0c2542'
+  surface-bright: '#0d3a5d'
+  surface-container-lowest: '#003B5C'
+  surface-container-low: '#0a3150'
+  surface-container: '#123d5f'
+  surface-container-high: '#1b4f73'
+  surface-container-highest: '#245d84'
+  on-surface: '#ffffff'
+  on-surface-variant: '#dfeaf7'
+  inverse-surface: '#dfeaf7'
+  inverse-on-surface: '#003B5C'
+  outline: '#66a9d9'
+  outline-variant: '#89bddf'
+  surface-tint: '#D4AF37'
+  primary: '#014421'
   on-primary: '#ffffff'
-  primary-container: '#1b4332'
-  on-primary-container: '#86af99'
-  inverse-primary: '#a5d0b9'
-  secondary: '#2c694e'
-  on-secondary: '#ffffff'
-  secondary-container: '#aeeecb'
-  on-secondary-container: '#316e52'
-  tertiary: '#4e0f00'
-  on-tertiary: '#ffffff'
-  tertiary-container: '#741b00'
-  on-tertiary-container: '#ff835f'
-  error: '#ba1a1a'
+  primary-container: '#014421'
+  on-primary-container: '#ffffff'
+  inverse-primary: '#ffffff'
+  secondary: '#D4AF37'
+  on-secondary: '#003B5C'
+  secondary-container: '#D4AF37'
+  on-secondary-container: '#003B5C'
+  tertiary: '#D4AF37'
+  on-tertiary: '#003B5C'
+  tertiary-container: '#f4d77a'
+  on-tertiary-container: '#003B5C'
+  error: '#ff6b6b'
   on-error: '#ffffff'
-  error-container: '#ffdad6'
-  on-error-container: '#93000a'
-  primary-fixed: '#c1ecd4'
-  primary-fixed-dim: '#a5d0b9'
+  error-container: '#f5d0d0'
+  on-error-container: '#5b1010'
+  primary-fixed: '#d1f6d5'
+  primary-fixed-dim: '#b7e8bc'
   on-primary-fixed: '#002114'
-  on-primary-fixed-variant: '#274e3d'
-  secondary-fixed: '#b1f0ce'
-  secondary-fixed-dim: '#95d4b3'
-  on-secondary-fixed: '#002114'
-  on-secondary-fixed-variant: '#0e5138'
-  tertiary-fixed: '#ffdbd1'
-  tertiary-fixed-dim: '#ffb5a0'
-  on-tertiary-fixed: '#3b0900'
-  on-tertiary-fixed-variant: '#862201'
-  background: '#f6fbf5'
-  on-background: '#181d1a'
-  surface-variant: '#dfe4df'
+  on-primary-fixed-variant: '#0b4f2d'
+  secondary-fixed: '#fbe8a8'
+  secondary-fixed-dim: '#e9d175'
+  on-secondary-fixed: '#003B5C'
+  on-secondary-fixed-variant: '#5d4800'
+  tertiary-fixed: '#f7e5b7'
+  tertiary-fixed-dim: '#f1d283'
+  on-tertiary-fixed: '#003B5C'
+  on-tertiary-fixed-variant: '#654d00'
+  background: '#003B5C'
+  on-background: '#ffffff'
+  surface-variant: '#123d5f'
 typography:
   headline-lg:
     fontFamily: Literata
@@ -130,30 +130,30 @@ spacing:
 
 This design system is tailored for purposeful pastoral stewardship and community care. Its identity balances administrative diligence with warmth and spiritual dignity, speaking to district administrators, local pastors, and cell-group leaders navigating structured pastoral visits, church registries, and community follow-ups.
 
-The aesthetic fuses modern editorial clarity with understated utility:
-- **Tone:** Grounded, revered, orderly, and deeply human. Avoids both cold enterprise software sterility and flashy consumer-social excess.
-- **Design Movement:** Modern Editorial Minimalism. It relies on clean, breathable surfaces, high typographic distinction between humanistic serifs and technical sans-serifs, and crisp, structured containers.
-- **Key Tenet:** High functional density without visual clutter. Data entry must feel dignified; field notes and pastoral observations receive respectful, focused framing.
+The aesthetic fuses modern editorial clarity with restrained institutional authority:
+- **Tone:** Trustworthy, stable, and pastoral. The interface is calm and legible, without feeling generic or overly decorative.
+- **Design Movement:** Editorial-meets-product. The app uses modern typography, quiet surfaces, and clear structure to support fast pastoral operations.
+- **Key Tenet:** High information density with minimal noise. The main actions stay obvious, while secondary status and warnings remain readable without visual clutter.
 
 ## Colors
 
-The palette establishes an atmosphere of organic stability, reliability, and calm authority through deep evergreen tones, balanced by smoke-white backgrounds and focused warm accents.
+The palette reflects the current implementation: a deep blue canvas with white text, green primary actions, and gold as the accent used for focus and status treatment.
 
-- **Primary (`#1B4332`) & Secondary (`#2D6A4F`):** Deep Forest Green and Pine Green. Used for core application navigation, key interactive triggers, selected states, and structural branding. Represents spiritual grounding, growth, and trust.
-- **Tertiary Accent (`#D95D39` / `#C85A32`):** Terracotta / Coral. Reserved strictly for critical destructive actions, urgent follow-up flags, and dynamic counter badges requiring immediate pastoral intervention.
-- **Warm Gold (`#D4A373` / `#E9C46A`):** Used deliberately for pending visits, pastoral observations, reminders, and secondary status markers.
+- **Canvas / Background (`#003B5C`):** Primary app surface, used for the overall screen base and dark-mode-like institutional shell.
+- **Primary Action (`#014421`):** Deep green for main buttons, key affirmations, and strong action surfaces. It provides clear hierarchy without competing with the blue canvas.
+- **Accent / Highlights (`#D4AF37`):** Gold accent reserved for active focus states, labels, icon emphasis, and secondary status cues.
 - **Neutral Surface Palette:**
-  - Base canvas: `#F4F6F4` (soft tinted smoke) and `#F8F9FA` (pure smoke white).
-  - Elevated cards & sheets: `#FFFFFF`.
-  - Borders and dividers: `#E2E8F0` and `#D1D5DB`.
+  - Base surfaces: deep blue variants of `#003B5C`, `#0A3150`, and `#123D5F`.
+  - Elevated cards & sheets: the same blue family, kept low-contrast and consistent with the app shell.
+  - Borders and dividers: translucent white-blue lines for soft separation.
 - **Text & Contrast:**
-  - Primary text: Deep Charcoal (`#1F2421`).
-  - Secondary text / metadata: Slate Charcoal (`#4B5563`).
-  - Disabled / hints: Muted Gray (`#9CA3AF`).
+  - Primary text: Pure White (`#FFFFFF`).
+  - Secondary text / metadata: Soft blue-white (`#DFEAF7`).
+  - Focus / emphasis: Gold (`#D4AF37`).
 - **Semantic Status Signals:**
-  - *Programada:* Soft slate blue/gray (`#2D6A4F` tint or `#475569` on `#F1F5F9`).
-  - *Completada:* Deep Forest Green (`#1B4332` on `#E8F0EB`).
-  - *Cancelada:* Terracotta tint (`#C85A32` on `#FDF2EE`).
+  - *Programada:* cool-blue / muted slate surfaces with gold emphasis.
+  - *Completada:* deep green action state aligned with the primary button treatment.
+  - *Cancelada / crítico:* warm gold or soft error tones, used sparingly for non-success states.
 
 ## Typography
 

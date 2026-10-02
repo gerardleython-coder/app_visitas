@@ -98,6 +98,14 @@ class FakeAdministratorRepository:
         self.profiles[operator_id] = inactive
         return inactive
 
+    async def activate_operator(self, operator_id: UUID) -> OperatorProfile | None:
+        profile = self.profiles.get(operator_id)
+        if profile is None:
+            return None
+        active = replace(profile, active=True)
+        self.profiles[operator_id] = active
+        return active
+
 
 @dataclass
 class FakeAuditRepository:
@@ -226,7 +234,10 @@ async def test_admin_can_list_create_and_update_other_admins() -> None:
     assert [record.action for record in audit.records] == ["CREADO", "MODIFICADO"]
 
 
-@pytest.mark.parametrize("operation", ["list", "create", "update", "deactivate"])
+@pytest.mark.parametrize(
+    "operation",
+    ["list", "create", "update", "deactivate", "reactivate"],
+)
 async def test_non_admin_cannot_manage_admin_accounts(operation: str) -> None:
     actor = account(UserRole.PASTOR)
     target = administrator()
@@ -251,6 +262,8 @@ async def test_non_admin_cannot_manage_admin_accounts(operation: str) -> None:
             )
         if operation == "update":
             return await management.update(actor, target.id, {"name": "Changed"})
+        if operation == "reactivate":
+            return await management.reactivate(actor, target.id)
         return await management.deactivate(actor, target.id)
 
     with pytest.raises(ForbiddenException):
@@ -317,6 +330,57 @@ async def test_admin_deactivation_is_logical_audited_and_revokes_refresh_session
     assert audit.records[0].actor_id == actor_profile.id
     assert audit.records[0].resource_id == target.id
     assert audit.records[0].action == "DESACTIVADO"
+
+
+async def test_admin_can_reactivate_another_inactive_admin_and_audit_it() -> None:
+    actor = administrator()
+    target = administrator(active=False)
+    repository = FakeAdministratorRepository(
+        profiles={actor.id: actor, target.id: target}
+    )
+    audit = FakeAuditRepository()
+    management = AdministratorManagement(
+        repository,
+        FakePasswordHasher(),
+        audit,
+        FakeRefreshSessions(),
+    )
+
+    reactivated = await management.reactivate(
+        account(UserRole.ADMIN, actor.id),
+        target.id,
+    )
+
+    assert reactivated.active is True
+    assert repository.admin_locks == 1
+    assert audit.records[0].actor_id == actor.id
+    assert audit.records[0].resource_id == target.id
+    assert audit.records[0].action == "REACTIVADO"
+    assert audit.records[0].previous_values["active"] is False
+    assert audit.records[0].new_values["active"] is True
+
+
+async def test_reactivating_active_admin_is_idempotent_without_extra_audit() -> None:
+    actor = administrator()
+    target = administrator()
+    repository = FakeAdministratorRepository(
+        profiles={actor.id: actor, target.id: target}
+    )
+    audit = FakeAuditRepository()
+    management = AdministratorManagement(
+        repository,
+        FakePasswordHasher(),
+        audit,
+        FakeRefreshSessions(),
+    )
+
+    reactivated = await management.reactivate(
+        account(UserRole.ADMIN, actor.id),
+        target.id,
+    )
+
+    assert reactivated == target
+    assert audit.records == []
 
 
 async def test_admin_update_rejects_unknown_fields_missing_and_inactive_accounts() -> None:

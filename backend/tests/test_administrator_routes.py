@@ -91,6 +91,15 @@ class FakeAdministratorManagement:
         self.profiles[administrator_id] = deactivated
         return deactivated
 
+    async def reactivate(
+        self,
+        _actor: UserAccount,
+        administrator_id: UUID,
+    ) -> OperatorProfile:
+        reactivated = replace(self.profiles[administrator_id], active=True)
+        self.profiles[administrator_id] = reactivated
+        return reactivated
+
 
 @dataclass
 class FakeBootstrapAdministrator:
@@ -153,6 +162,12 @@ def test_admin_routes_create_list_update_and_deactivate_without_credentials() ->
 
             deleted = client.delete(f"/api/v1/users/administradores/{body['id']}")
             assert deleted.status_code == 204
+
+            reactivated = client.post(
+                f"/api/v1/users/administradores/{body['id']}/reactivar"
+            )
+            assert reactivated.status_code == 200
+            assert reactivated.json()["active"] is True
     finally:
         app.dependency_overrides.pop(get_current_account, None)
         app.dependency_overrides.pop(get_administrator_management, None)
@@ -160,13 +175,21 @@ def test_admin_routes_create_list_update_and_deactivate_without_credentials() ->
 
 def test_only_admin_can_access_administrator_crud() -> None:
     app.dependency_overrides[get_current_account] = lambda: account(UserRole.PASTOR)
+    app.dependency_overrides[get_administrator_management] = (
+        lambda: FakeAdministratorManagement()
+    )
     try:
         with TestClient(app) as client:
             response = client.get("/api/v1/users/administradores")
+            reactivate = client.post(
+                f"/api/v1/users/administradores/{uuid4()}/reactivar"
+            )
     finally:
         app.dependency_overrides.pop(get_current_account, None)
+        app.dependency_overrides.pop(get_administrator_management, None)
 
     assert response.status_code == 403
+    assert reactivate.status_code == 403
 
 
 def test_bootstrap_requires_secret_and_returns_no_hash(monkeypatch: pytest.MonkeyPatch) -> None:

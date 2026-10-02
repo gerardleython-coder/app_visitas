@@ -60,10 +60,19 @@ La jerarquía es `Distrito -> Iglesia -> Usuarios -> Hermanos y visitas`.
 - `ADMIN` no requiere distrito ni iglesia. El primer `ADMIN` se provisiona una
   sola vez mediante bootstrap privado; después, un `ADMIN` activo administra
   las demás cuentas `ADMIN`.
-- Solo `ADMIN` puede listar, crear, editar y desactivar otros `ADMIN`. No puede
-  desactivarse a sí mismo ni desactivar al último `ADMIN` activo.
+- Solo `ADMIN` puede listar, crear, editar, desactivar y reactivar otros
+  `ADMIN`. No puede desactivarse a sí mismo ni desactivar al último `ADMIN`
+  activo.
 - La desactivación de un `ADMIN` es lógica, queda auditada y revoca sus sesiones
   refresh; la cuenta inactiva no puede iniciar sesión ni renovar sesión.
+- La reactivación de un `ADMIN` inactivo es un cambio reversible de estado, solo
+  lo realiza un `ADMIN` activo y no restaura refresh tokens ya revocados; el
+  usuario debe autenticarse de nuevo.
+- La eliminación irreversible de datos de un `ADMIN` es una operación
+  separada de la desactivación y solo puede aplicarse a otra cuenta. No borra
+  físicamente la fila ni su UUID, necesarios para relaciones históricas; elimina
+  los datos personales del perfil y de snapshots auditables, revoca sesiones y
+  tokens de recuperación, y nunca puede dejar el sistema sin un ADMIN activo.
 - Una iglesia puede tener varios pastores y líderes activos.
 - `ADMIN` marca como máximo un pastor principal por iglesia para notificaciones.
 - Cada `HERMANO` debe tener nombre, apellido, teléfono, dirección, distrito,
@@ -146,6 +155,13 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 - Validar roles, estados, alcance, pertenencia a iglesia y unicidad de visitas
   en dominio, aplicación y persistencia.
 - Los usuarios y hermanos se desactivan lógicamente para conservar historial.
+- Las cuentas `ADMIN` conservan una desactivación lógica reversible en sus datos
+  históricos y pueden reactivarse por otro `ADMIN` activo sin restaurar refresh
+  tokens revocados; la eliminación irreversible anonimiza PII, conserva la
+  identidad referencial y los metadatos de auditoría, y revoca
+  credenciales/sesiones. Los respaldos cifrados con datos anteriores deben
+  expirar según una política de retención aprobada antes de confirmar la
+  eliminación como completa.
 - El access token dura 15 minutos.
 - Los refresh tokens se rotan, se almacenan de forma revocable y se invalidan
   al cerrar sesión, expirar o detectar reutilización.
@@ -189,9 +205,19 @@ La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 - Creación y asignación de `/users/lideres`, solo `ADMIN`; `PASTOR` puede
   consultar y editar sus datos sin cambiar el rol.
 - CRUD de `/users/administradores`, solo `ADMIN`: crear sin asignación
-  territorial, listar, editar nombre/apellido/correo y desactivar lógicamente.
-  La baja impide la auto-desactivación y la desactivación del último `ADMIN`
-  activo; registra auditoría y revoca sesiones refresh.
+  territorial, listar, editar nombre/apellido/correo, desactivar lógicamente y
+  reactivar cuentas inactivas. La baja impide la auto-desactivación y la
+  desactivación del último `ADMIN` activo; la reactivación es reversible,
+  registra auditoría y no restaura sesiones refresh revocadas.
+- `POST /users/administradores/{id}/reactivar`, solo `ADMIN`: activa una cuenta
+  `ADMIN` inactiva y la devuelve a la vista de activos sin restaurar refresh
+  tokens previamente revocados.
+- `POST /users/administradores/{id}/eliminacion-definitiva`, solo `ADMIN`: borra
+  irreversiblemente datos personales de otra cuenta ADMIN mediante
+  anonimización, sin borrar físicamente la fila ni eventos de auditoría.
+  Conserva IDs/fechas/acciones/referencias, elimina PII de perfil y snapshots,
+  invalida sesiones y tokens de recuperación, bloquea auto-eliminación y evita
+  dejar cero ADMIN activos.
 - CRUD de `/hermanos` según alcance; reasignación de líder por `ADMIN` o
   `PASTOR`.
 - CRUD de `/visitas` según alcance y reglas de estado.
@@ -232,12 +258,14 @@ observables, errores de autorización, límites de alcance y reglas de negocio;
 no deben describir detalles internos de SQLAlchemy, Flutter o la estructura de
 clases.
 
-Las HU-01 a HU-10 y sus escenarios completos están en la sección "Historias de
-usuario y aceptación" del `README.md`. La HU-11 añade la administración de
-cuentas `ADMIN`, incluido el bootstrap inicial privado. Las historias cubren
-autenticación, asignaciones administrativas, hermanos, visitas, auditoría,
-notificaciones, ranking, recuperación, desactivación lógica, administración
-territorial y cuentas administrativas.
+Las HU-01 a HU-12 y sus escenarios completos están en la sección "Historias de
+usuario y aceptación" del `README.md`. HU-11 define la administración de cuentas
+`ADMIN` y el bootstrap inicial privado. HU-12 especifica la anonimización
+irreversible de datos personales de administradores preservando referencias e
+historial de auditoría; requiere aprobar la política de retención de respaldos.
+Las historias cubren autenticación, asignaciones administrativas, hermanos,
+visitas, auditoría, notificaciones, ranking, recuperación, desactivación lógica,
+administración territorial y ciclo de vida de administradores.
 
 ### Relación con SOLID
 

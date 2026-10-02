@@ -100,6 +100,41 @@ async def test_operator_repository_persists_admin_without_territory() -> None:
         await engine.dispose()
 
 
+async def test_operator_repository_reactivates_admin_without_replacing_identity() -> None:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with session_factory() as session:
+            repository = SQLAlchemyOperatorRepository(session)
+            account = await repository.create_administrator(
+                name="Ana",
+                surname="Admin",
+                email="ana@example.test",
+                password_hash="argon2-test-hash",
+            )
+            await session.commit()
+
+            deactivated = await repository.deactivate_operator(account.id)
+            await session.commit()
+            reactivated = await repository.activate_operator(account.id)
+            await session.commit()
+            persisted = await session.get(UserModel, account.id)
+
+        assert deactivated is not None
+        assert deactivated.active is False
+        assert reactivated is not None
+        assert reactivated.active is True
+        assert reactivated.id == account.id
+        assert reactivated.email == account.email
+        assert persisted is not None
+        assert persisted.password_hash == "argon2-test-hash"
+    finally:
+        await engine.dispose()
+
+
 async def test_database_rejects_operator_with_mismatched_district_and_church() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
 

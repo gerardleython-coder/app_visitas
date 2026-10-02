@@ -44,6 +44,8 @@ class AdministratorRepository(Protocol):
 
     async def deactivate_operator(self, operator_id: UUID) -> OperatorProfile | None: ...
 
+    async def activate_operator(self, operator_id: UUID) -> OperatorProfile | None: ...
+
 
 class PasswordHasher(Protocol):
     def hash(self, password: str) -> str: ...
@@ -228,6 +230,33 @@ class AdministratorManagement:
             )
         )
         return deactivated
+
+    async def reactivate(
+        self,
+        actor: UserAccount,
+        administrator_id: UUID,
+    ) -> OperatorProfile:
+        self._require_admin(actor)
+        await self._administrators.lock_administrators()
+        previous = await self._get_admin(administrator_id)
+        if previous.active:
+            return previous
+
+        reactivated = await self._administrators.activate_operator(administrator_id)
+        if reactivated is None:
+            raise NotFoundException("Administrador no encontrado")
+        await self._audit.record_event(
+            AuditRecord(
+                actor_id=actor.id,
+                resource="USUARIO",
+                resource_id=reactivated.id,
+                action="REACTIVADO",
+                church_id=None,
+                previous_values=self._profile_values(previous),
+                new_values=self._profile_values(reactivated),
+            )
+        )
+        return reactivated
 
     async def _get_admin(self, administrator_id: UUID) -> OperatorProfile:
         profile = await self._administrators.get_operator(administrator_id)
