@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+
+<html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&family=Manrope:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Literata:wght@100..900&family=Manrope:wght@100..900&display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "inverse-surface": "#2c322e", "on-primary-fixed": "#002114", "background": "#f6fbf5", "tertiary-fixed": "#ffdbd1", "surface-dim": "#d7dbd6", "surface-container-high": "#e5e9e4", "error-container": "#ffdad6", "on-error": "#ffffff", "on-secondary-container": "#316e52", "primary-fixed-dim": "#a5d0b9", "outline-variant": "#c1c8c2", "on-background": "#181d1a", "surface-variant": "#dfe4df", "secondary": "#2c694e", "on-primary-fixed-variant": "#274e3d", "surface-container": "#ebefea", "on-surface-variant": "#414844", "secondary-fixed": "#b1f0ce", "on-surface": "#181d1a", "on-secondary": "#ffffff", "on-tertiary-fixed": "#3b0900", "secondary-container": "#aeeecb", "secondary-fixed-dim": "#95d4b3", "tertiary-container": "#741b00", "on-tertiary-container": "#ff835f", "primary": "#012d1d", "inverse-on-surface": "#edf2ed", "on-tertiary": "#ffffff", "on-tertiary-fixed-variant": "#862201", "on-secondary-fixed": "#002114", "on-error-container": "#93000a", "on-primary-container": "#86af99", "surface-container-lowest": "#ffffff", "outline": "#717973", "primary-container": "#1b4332", "error": "#ba1a1a", "surface": "#f6fbf5", "surface-container-low": "#f0f5f0", "surface-container-highest": "#dfe4df", "on-primary": "#ffffff", "inverse-primary": "#a5d0b9", "surface-tint": "#3f6653", "tertiary": "#4e0f00", "primary-fixed": "#c1ecd4", "on-secondary-fixed-variant": "#0e5138", "tertiary-fixed-dim": "#ffb5a0", "surface-bright": "#f6fbf5" }, borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, spacing: { "space-md": "0.75rem", "gutter": "1rem", "space-sm": "0.5rem", "space-xl": "1.5rem", "margin": "1rem", "space-lg": "1rem", "space-xs": "0.25rem" }, fontFamily: { "label-md": ["Manrope"], "label-sm": ["Manrope"], "label-lg": ["Manrope"], "headline-lg": ["Literata"], "body-lg": ["Manrope"], "headline-md": ["Literata"], "title-md": ["Manrope"], "body-md": ["Manrope"], "title-sm": ["Manrope"], "headline-sm": ["Literata"], "body-sm": ["Manrope"] }, fontSize: { "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700" }], "label-lg": ["14px", { "lineHeight": "18px", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-lg": ["15px", { "lineHeight": "22px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "title-md": ["16px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "title-sm": ["14px", { "lineHeight": "20px", "fontWeight": "600" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }] } } } };</script><style>@layer base{html,body{width:100%;margin:0;padding:0;min-height:100%;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}}::-webkit-scrollbar{display:none;}.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 22;}body{min-height:max(884px,100dvh);}</style></head><body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-6 px-margin flex items-center justify-between text-on-surface-variant"><span class="font-label-sm text-label-sm font-semibold tracking-tight text-on-surface">09:41</span><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[14px]">signal_cellular_alt</span><span class="material-symbols-outlined text-[14px]">wifi</span><span class="material-symbols-outlined text-[14px]">battery_full</span></div></div><div class="h-14 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0"><img alt="AppVisitas Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1Vf41GVC0MAnsDoyFyb2iGiiMkmLZ0NrPBnuvwpg1gToJWr8LpNvQQ9rvGUJgru3Pgu6ZGMD4ReK19MzC7ZLwFEkaq_C5donqihbBjxq8mjiNW520mtijOUdk740WR86go5qBoXTt0F-Am7EaVG0pxYOjhlQgOub7NipHr03jcdkdzH47j1SCRn_IhfdKGRPXIlq1-88JJ5hcLSSKeViw09dheqpRwr4HT-zv0lqE9KMOpbhVCsubqNCJLl"/><div class="flex flex-col min-w-0"><span class="font-headline-sm text-headline-sm text-primary-container font-semibold truncate leading-tight">AppVisitas</span><span class="font-label-sm text-label-sm text-on-surface-variant truncate font-normal leading-none">Gestión Pastoral</span></div></div><div class="flex items-center gap-space-sm flex-shrink-0"><div class="inline-flex items-center bg-surface-container px-space-xs py-0.5 rounded-xl"><button class="px-1.5 py-0.5 rounded-lg text-[10px] font-label-sm text-primary-container font-bold hover:bg-surface-container-highest transition-colors" onclick="document.body.setAttribute('data-role','ADMIN')" title="Rol Administrador" type="button">ADM</button><button class="px-1.5 py-0.5 rounded-lg text-[10px] font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" onclick="document.body.setAttribute('data-role','PASTOR')" title="Rol Pastor" type="button">PAS</button><button class="px-1.5 py-0.5 rounded-lg text-[10px] font-label-sm text-on-surface-variant hover:text-on-surface transition-colors" onclick="document.body.setAttribute('data-role','LIDER')" title="Rol Líder" type="button">LID</button></div><a class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary ring-2 ring-primary/10" data-path="perfil-y-ajustes" href="#"><span class="material-symbols-outlined text-[18px]">person</span></a></div></div></header><main class="flex flex-col relative w-full pt-20 pb-20 bg-surface min-h-screen"><div class="flex flex-col w-full pb-8">
+<!-- Header Contextual -->
+<div class="px-margin pt-2 pb-3">
+<div class="flex items-center justify-between gap-space-sm mb-1">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Gestión Distrital ADM</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded">18 Activos</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight font-semibold">Equipo Pastoral y Líderes</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Supervisión de ministros por distrito e iglesia</p>
+</div>
+<!-- Primary CTA Action -->
+<div class="px-margin mb-4">
+<button class="w-full h-12 bg-primary-container hover:bg-secondary active:scale-[0.99] text-on-primary font-title-sm text-title-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all" id="btn-open-modal" type="button">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+<span>+ Nuevo Ministro</span>
+</button>
+</div>
+<!-- Search & Filter Area -->
+<div class="px-margin space-y-2.5 mb-4">
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full h-11 pl-10 pr-10 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md shadow-sm focus:outline-none focus:bg-surface-container-low transition-colors" id="minister-search" placeholder="Buscar por nombre, cédula o iglesia..." type="text"/>
+<button class="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-primary" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+<!-- Filter Chips (Horizontal Scrollable) -->
+<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-margin px-margin">
+<button class="filter-chip active flex-shrink-0 px-3 py-1.5 rounded-full bg-primary-container text-on-primary font-label-md text-label-md transition-all shadow-sm" type="button">
+        Todos (18)
+      </button>
+<button class="filter-chip flex-shrink-0 px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant font-label-md text-label-md transition-all" type="button">
+        Pastores (4)
+      </button>
+<button class="filter-chip flex-shrink-0 px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant font-label-md text-label-md transition-all" type="button">
+        Líderes de Célula (14)
+      </button>
+<button class="filter-chip flex-shrink-0 px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant font-label-md text-label-md transition-all flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">location_city</span>
+        Distrito Centro
+      </button>
+<button class="filter-chip flex-shrink-0 px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-variant font-label-md text-label-md transition-all flex items-center gap-1" type="button">
+<span class="material-symbols-outlined text-[14px]">church</span>
+        Iglesia del Norte
+      </button>
+</div>
+</div>
+<!-- Editorial Regla de Negocio Card -->
+<div class="px-margin mb-4">
+<div class="bg-surface-container-low rounded-xl p-3.5 shadow-sm flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-tertiary-fixed text-tertiary flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-title-sm text-title-sm text-primary font-bold">Regla Canónica Distrital</span>
+<span class="px-1.5 py-0.2 bg-surface-container-highest rounded text-[9px] font-label-sm text-on-surface-variant uppercase">Estatuto</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-snug">
+          Solo un <strong class="text-on-surface font-semibold">Pastor Principal</strong> activo por iglesia. Reasignar un pastor principal transfiere automáticamente la titularidad institucional y el historial de supervisión pastoral.
+        </p>
+</div>
+</div>
+</div>
+<!-- Structured Minister Cards List -->
+<div class="px-margin space-y-3">
+<!-- Card 1: Pastor Samuel Torres -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all hover:shadow-md">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative">
+<img class="w-12 h-12 rounded-xl object-cover" data-alt="Warm documentary portrait of Pastor Samuel Torres, a smiling middle-aged Latin American minister wearing a dark green clerical collar in an earthy church library with soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4IkPCLeC0ICLbHRX9DO9CofRJeg76Cn4cSeEaqXnBt7Oo0Asc7tXX04Rx8WV0J0mEHOqv9VW898h_ZFWZ_N_1mEXefqwWBCCbNV_2ALHUmURnrh6MjgSneiEQclQbWRw3femXfO4LMV5fctg9vsrUftFn8mbv2BnV4BI3-nterLajX50UiZGKBUpSyIveZqGSOAKC2dK375qoizIoMrZmQ3yaNZXptWFaxQCBmc7YHBimyW760U3T8Q"/>
+<span class="absolute -bottom-1 -right-1 w-4 h-4 bg-secondary rounded-full flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</span>
+</div>
+<div class="min-w-0">
+<h2 class="font-title-md text-title-md text-on-surface truncate">Pastor Samuel Torres</h2>
+<div class="flex items-center gap-1 text-on-surface-variant mt-0.5">
+<span class="material-symbols-outlined text-[14px]">church</span>
+<span class="font-body-sm text-body-sm truncate">Comunidad Central • <span class="text-secondary font-medium">Distrito Centro</span></span>
+</div>
+</div>
+</div>
+<span class="flex-shrink-0 px-2.5 py-1 rounded-md bg-secondary-fixed text-on-secondary-fixed font-label-sm text-[10px] tracking-wide uppercase font-bold flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">stars</span>
+          Pastor Principal
+        </span>
+</div>
+<!-- Metrics pill cluster -->
+<div class="grid grid-cols-2 gap-2 my-3 p-2.5 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-md bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[16px]">groups</span>
+</div>
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block leading-tight font-bold">12</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant leading-none">Hermanos a cargo</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-md bg-surface-container flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[16px]">event_available</span>
+</div>
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block leading-tight font-bold">8</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant leading-none">Visitas este mes</span>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-[11px] text-on-surface-variant flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> Titular en ejercicio
+        </span>
+<button class="h-9 px-3 rounded-lg bg-surface-container-high hover:bg-surface-variant text-primary-container font-label-md text-label-md flex items-center gap-1.5 transition-colors" onclick="openEditModal('Pastor Samuel Torres', 'Pastor Principal', 'Distrito Centro', 'Comunidad Central')" type="button">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Editar / Reasignar</span>
+</button>
+</div>
+</div>
+<!-- Card 2: Pastora Ana Rojas -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all hover:shadow-md">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative">
+<img class="w-12 h-12 rounded-xl object-cover" data-alt="Portrait of Pastor Ana Rojas, a professional South American female minister in pastoral attire smiling gently, warm earth tones and subtle sage green background, daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDukok1YZvFy0v94xBcVh0cECqWkDkxghNMwOQ5FBiBcGBK_6qR2ay0ver-t6hNOkacdpM5c4NsBi9lGuJt0_k-eOEgYugBcxKvLJq2yoD5pbNn3lZrY39o7AhEvWPQ4NOdxcyrGTo0uipmeHusbpSODYLurl_s1dDrsKrb2bZRDiC1IcYNOjVhzuiTLleoz4ihA_Y9z5sYgL2ntsdHnvNgi8kIio2qCxZ-96gsQspSX8nklgc3Pxym2g"/>
+<span class="absolute -bottom-1 -right-1 w-4 h-4 bg-secondary rounded-full flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</span>
+</div>
+<div class="min-w-0">
+<h2 class="font-title-md text-title-md text-on-surface truncate">Pastora Ana Rojas</h2>
+<div class="flex items-center gap-1 text-on-surface-variant mt-0.5">
+<span class="material-symbols-outlined text-[14px]">church</span>
+<span class="font-body-sm text-body-sm truncate">Iglesia del Norte • <span class="text-secondary font-medium">Distrito Norte</span></span>
+</div>
+</div>
+</div>
+<span class="flex-shrink-0 px-2.5 py-1 rounded-md bg-secondary-fixed text-on-secondary-fixed font-label-sm text-[10px] tracking-wide uppercase font-bold flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">stars</span>
+          Pastor Principal
+        </span>
+</div>
+<!-- Metrics pill cluster -->
+<div class="grid grid-cols-2 gap-2 my-3 p-2.5 rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-md bg-surface-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[16px]">groups</span>
+</div>
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block leading-tight font-bold">16</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant leading-none">Hermanos a cargo</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-md bg-surface-container flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[16px]">event_available</span>
+</div>
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block leading-tight font-bold">11</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant leading-none">Visitas este mes</span>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-[11px] text-on-surface-variant flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> Cuota pastoral superada (+15%)
+        </span>
+<button class="h-9 px-3 rounded-lg bg-surface-container-high hover:bg-surface-variant text-primary-container font-label-md text-label-md flex items-center gap-1.5 transition-colors" onclick="openEditModal('Pastora Ana Rojas', 'Pastor Principal', 'Distrito Norte', 'Iglesia del Norte')" type="button">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Editar / Reasignar</span>
+</button>
+</div>
+</div>
+<!-- Card 3: Líder David Gómez -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm transition-all hover:shadow-md">
+<div class="flex items-start justify-between gap-2 mb-2.5">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-primary font-bold font-headline-sm flex-shrink-0">
+            DG
+          </div>
+<div class="min-w-0">
+<h2 class="font-title-md text-title-md text-on-surface truncate">Líder David Gómez</h2>
+<div class="flex items-center gap-1 text-on-surface-variant mt-0.5">
+<span class="material-symbols-outlined text-[14px]">groups</span>
+<span class="font-body-sm text-body-sm truncate">Congregación Comunidad Central</span>
+</div>
+</div>
+</div>
+<span class="flex-shrink-0 px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-[10px] tracking-wide uppercase font-bold">
+          Líder de Célula
+        </span>
+</div>
+<!-- Supervision and Assignment Badges -->
+<div class="my-3 p-2.5 rounded-lg bg-surface-container-low flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-[11px] text-on-surface-variant">Supervisor pastoral directo:</span>
+<span class="font-title-sm text-[12px] text-primary-container font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">person</span>
+            Pr. Samuel Torres
+          </span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-[11px] text-on-surface-variant">Asignación de Célula Familiar:</span>
+<span class="font-label-sm text-[11px] px-2 py-0.5 bg-secondary-fixed text-on-secondary-fixed rounded font-bold">
+            6 familias registradas
+          </span>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-[11px] text-secondary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">task_alt</span> Célula 'Betel' Activa
+        </span>
+<button class="h-9 px-3 rounded-lg bg-surface-container-high hover:bg-surface-variant text-primary-container font-label-md text-label-md flex items-center gap-1.5 transition-colors" onclick="openEditModal('Líder David Gómez', 'Líder de Célula', 'Distrito Centro', 'Comunidad Central')" type="button">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+<span>Gestionar</span>
+</button>
+</div>
+</div>
+<!-- Card 4: Líder Marta Morales (Inactiva con Advertencia) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 shadow-sm border-l-4 border-l-tertiary transition-all">
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative">
+<img class="w-12 h-12 rounded-xl object-cover grayscale opacity-75" data-alt="Portrait of an older Hispanic Christian cell group leader Marta Morales wearing glasses, compassionate expression, warm neutral studio lighting with sage green highlights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBb8YvGnu-m9RO_e6GxxWwX_Ybv51pdyxUrg_E6G3gzNW1YdIOiliRCkClrkmJ-cKGKyewJCi702uHSl_c7-B4rtm8V2tfIA_3V-6hXsEqMv3S027q9pNzxoA8txaRXgtiFtsuw-wpzGxNkV2N8MFXkgyByR1DcGSWGvhRAO3t5Yj-nHkysOS_PO58IaOVKN1tkBm2tFKo-jPXBcSQERLzkbJMhq-eLCCimVpbdXAe56qrbFxUzdXplCA"/>
+<span class="absolute -bottom-1 -right-1 w-4 h-4 bg-tertiary-container rounded-full flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[10px]">pause</span>
+</span>
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-1.5">
+<h2 class="font-title-md text-title-md text-on-surface truncate">Líder Marta Morales</h2>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant mt-0.5">
+<span class="material-symbols-outlined text-[14px]">church</span>
+<span class="font-body-sm text-body-sm truncate">Comunidad Central</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-label-sm text-[10px] tracking-wide uppercase font-bold">
+            Líder de Célula
+          </span>
+<span class="px-2 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[10px] font-bold">
+            Inactivo temporal
+          </span>
+</div>
+</div>
+<!-- Pastoral Observation / Warning Box -->
+<div class="my-3 p-3 rounded-lg bg-tertiary-fixed/30 flex items-start gap-2.5">
+<span class="material-symbols-outlined text-tertiary text-[18px] flex-shrink-0 mt-0.5">warning</span>
+<div class="min-w-0 flex-1">
+<span class="font-label-sm text-label-sm text-tertiary font-bold block">Reasignación urgente requerida</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+            Hay <strong class="text-tertiary font-bold">3 hermanos</strong> sin visita pastoral asignada debido a la licencia médica del ministro.
+          </p>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex items-center justify-between pt-1">
+<span class="font-label-sm text-[11px] text-tertiary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">person_off</span> En pausa pastoral
+        </span>
+<button class="h-9 px-3 rounded-lg bg-tertiary-container hover:bg-tertiary text-on-primary font-label-md text-label-md flex items-center gap-1.5 transition-colors shadow-sm" onclick="openReassignWarning('Marta Morales')" type="button">
+<span class="material-symbols-outlined text-[16px]">forward_to_inbox</span>
+<span>Reasignar 3 Hermanos</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick Ministry Assignment Modal / Bottom Sheet Drawer -->
+<div class="fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300" id="assignment-modal">
+<div class="w-full max-w-lg bg-surface-container-lowest rounded-t-2xl shadow-xl transform translate-y-full transition-transform duration-300 max-h-[85vh] overflow-y-auto no-scrollbar flex flex-col" id="modal-container">
+<!-- Modal Pull Indicator & Header -->
+<div class="p-margin pb-2 flex-shrink-0">
+<div class="w-10 h-1 bg-surface-container-highest rounded-full mx-auto mb-3"></div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-on-surface" id="modal-title">Asignación de Ministro</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Configure jurisdicción y atribuciones canónicas</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface" id="btn-close-modal" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Form Content -->
+<form class="p-margin pt-2 space-y-3.5 flex-1" id="ministry-form" onsubmit="event.preventDefault(); saveAssignment();">
+<!-- Input: Nombre Completo -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-1 font-semibold">Nombre y Apellidos</label>
+<input class="w-full h-11 px-3.5 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none transition-all" id="form-name" placeholder="Ej. Pastor Jonathan Méndez" required="" type="text"/>
+</div>
+<!-- Input: Cédula o Identificación -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-1 font-semibold">Cédula Ministerial / DNI</label>
+<input class="w-full h-11 px-3.5 rounded-lg bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none transition-all" placeholder="Ej. 1-1402-0891" type="text"/>
+</div>
+<!-- Select: Distrito Obligatorio -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-1 font-semibold flex items-center justify-between">
+<span>Distrito Pastoral</span>
+<span class="text-[10px] text-tertiary uppercase font-bold tracking-wider">Requerido</span>
+</label>
+<div class="relative">
+<select class="w-full h-11 px-3.5 pr-8 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md appearance-none focus:outline-none transition-all" id="form-district" required="">
+<option disabled="" selected="" value="">Seleccione distrito eclesiástico...</option>
+<option value="Distrito Centro">Distrito Centro (Metropolitano)</option>
+<option value="Distrito Norte">Distrito Norte (Región Alajuela/Heredia)</option>
+<option value="Distrito Sur">Distrito Sur (Brunca)</option>
+<option value="Distrito Este">Distrito Este (Cartago y Valle)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 pointer-events-none text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Select: Iglesia Obligatoria -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-1 font-semibold flex items-center justify-between">
+<span>Iglesia Local</span>
+<span class="text-[10px] text-tertiary uppercase font-bold tracking-wider">Requerido</span>
+</label>
+<div class="relative">
+<select class="w-full h-11 px-3.5 pr-8 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md appearance-none focus:outline-none transition-all" id="form-church" required="">
+<option disabled="" selected="" value="">Seleccione congregación...</option>
+<option value="Comunidad Central">Comunidad Central (Principal)</option>
+<option value="Iglesia del Norte">Iglesia del Norte</option>
+<option value="Filial Monte Sion">Filial Monte Sion</option>
+<option value="Célula Misionera El Roble">Célula Misionera El Roble</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 pointer-events-none text-outline text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Select: Rol Institucional -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-1 font-semibold">Rol Institucional</label>
+<div class="relative">
+<select class="w-full h-11 px-3.5 pr-8 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md appearance-none focus:outline-none transition-all" id="form-role">
+<option value="Pastor Principal">Pastor Principal (Titular de Sede)</option>
+<option value="Pastor Adjunto">Pastor Adjunto / Asociado</option>
+<option value="Líder de Célula">Líder de Célula Familiar</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 pointer-events-none text-outline text-[18px]">expand_more</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mt-1">Si elige Pastor Principal, cualquier titular previo pasará a estado Asociado.</p>
+</div>
+<!-- Switch: Activo en ministerio -->
+<div class="p-3 rounded-lg bg-surface-container-low flex items-center justify-between">
+<div>
+<span class="font-title-sm text-title-sm text-on-surface block">Activo en Ministerio</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Habilitado para emitir reportes y agendar visitas</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="form-active" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+<!-- Notification Toast Box inside modal -->
+<div class="hidden p-2.5 rounded-lg bg-secondary-fixed text-on-secondary-fixed text-[12px] font-label-md items-center gap-2" id="modal-alert">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span>¡Cambios registrados en el libro de ordenación pastoral!</span>
+</div>
+<!-- Form Actions -->
+<div class="pt-2 pb-4 flex items-center gap-2">
+<button class="flex-1 h-11 rounded-lg bg-surface-container-high hover:bg-surface-variant text-on-surface-variant font-title-sm text-title-sm transition-colors" id="btn-cancel-modal" type="button">
+            Cancelar
+          </button>
+<button class="flex-1 h-11 rounded-lg bg-primary-container hover:bg-secondary text-on-primary font-title-sm text-title-sm transition-colors flex items-center justify-center gap-1.5 shadow-sm" type="submit">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span>Confirmar Asignación</span>
+</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Reassign Confirmation Toast / Banner -->
+<div class="fixed bottom-20 left-4 right-4 z-40 bg-inverse-surface text-inverse-on-surface p-3 rounded-xl shadow-lg flex items-center justify-between gap-3 transform translate-y-32 transition-transform duration-300" id="reassign-banner">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-tertiary-fixed text-[20px] flex-shrink-0">assignment_return</span>
+<span class="font-body-sm text-body-sm truncate" id="reassign-text">Reasignando rebaño de Marta Morales...</span>
+</div>
+<button class="px-2.5 py-1 rounded bg-tertiary-container text-on-primary font-label-sm text-[11px] font-bold flex-shrink-0" onclick="closeReassignBanner()" type="button">
+      Deshacer
+    </button>
+</div>
+</div>
+<script>
+  // Filter chips active toggle
+  const chips = document.querySelectorAll('.filter-chip');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => {
+        c.classList.remove('bg-primary-container', 'text-on-primary');
+        c.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+      });
+      chip.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+      chip.classList.add('bg-primary-container', 'text-on-primary');
+    });
+  });
+
+  // Modal open/close handling
+  const modal = document.getElementById('assignment-modal');
+  const modalContainer = document.getElementById('modal-container');
+  const btnOpen = document.getElementById('btn-open-modal');
+  const btnClose = document.getElementById('btn-close-modal');
+  const btnCancel = document.getElementById('btn-cancel-modal');
+
+  function showModal() {
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modalContainer.classList.remove('translate-y-full');
+    document.body.classList.add('overflow-hidden');
+  }
+
+  function hideModal() {
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modalContainer.classList.add('translate-y-full');
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  btnOpen.addEventListener('click', () => {
+    document.getElementById('modal-title').textContent = '+ Nuevo Ministro';
+    document.getElementById('form-name').value = '';
+    document.getElementById('form-district').value = '';
+    document.getElementById('form-church').value = '';
+    document.getElementById('form-role').value = 'Pastor Principal';
+    document.getElementById('form-active').checked = true;
+    showModal();
+  });
+
+  btnClose.addEventListener('click', hideModal);
+  btnCancel.addEventListener('click', hideModal);
+
+  // Close modal when clicking backdrop outside sheet
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) hideModal();
+  });
+
+  // Helper to open edit pre-filled modal
+  window.openEditModal = function(name, role, district, church) {
+    document.getElementById('modal-title').textContent = 'Editar Jurisdicción: ' + name;
+    document.getElementById('form-name').value = name;
+    document.getElementById('form-district').value = district;
+    document.getElementById('form-church').value = church;
+    document.getElementById('form-role').value = role;
+    document.getElementById('form-active').checked = true;
+    showModal();
+  };
+
+  // Save Assignment Simulation
+  window.saveAssignment = function() {
+    const alertBox = document.getElementById('modal-alert');
+    alertBox.classList.remove('hidden');
+    alertBox.classList.add('flex');
+    setTimeout(() => {
+      alertBox.classList.add('hidden');
+      alertBox.classList.remove('flex');
+      hideModal();
+    }, 1200);
+  };
+
+  // Reassignment notification banner trigger
+  window.openReassignWarning = function(ministerName) {
+    const banner = document.getElementById('reassign-banner');
+    const bannerText = document.getElementById('reassign-text');
+    bannerText.textContent = `Reasignando 3 hermanos de ${ministerName} al Pr. Samuel Torres`;
+    banner.classList.remove('translate-y-32');
+    setTimeout(() => {
+      banner.classList.add('translate-y-32');
+    }, 4500);
+  };
+
+  window.closeReassignBanner = function() {
+    const banner = document.getElementById('reassign-banner');
+    banner.classList.add('translate-y-32');
+  };
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/95 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.04)]" data-active-classes="text-primary-container font-bold"><div class="h-16 px-1 flex items-center justify-around"><a class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 text-on-surface-variant hover:text-primary-container transition-colors" data-path="inicio" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span><span class="font-label-sm text-[10px] leading-tight">Inicio</span></a><a class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 text-on-surface-variant hover:text-primary-container transition-colors" data-path="territorios" href="#"><span class="material-symbols-outlined text-[20px]">map</span><span class="font-label-sm text-[10px] leading-tight">Territorios</span></a><a aria-current="page" class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 transition-colors text-primary-container font-bold" data-path="equipo" href="#"><span class="material-symbols-outlined text-[20px]">groups</span><span class="font-label-sm text-[10px] leading-tight">Equipo</span></a><a class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 text-on-surface-variant hover:text-primary-container transition-colors" data-path="directorio-de-hermanos" href="#"><span class="material-symbols-outlined text-[20px]">contacts</span><span class="font-label-sm text-[10px] leading-tight">Hermanos</span></a><a class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 text-on-surface-variant hover:text-primary-container transition-colors" data-path="agenda-y-control-de-visitas" href="#"><span class="material-symbols-outlined text-[20px]">calendar_month</span><span class="font-label-sm text-[10px] leading-tight">Visitas</span></a><a class="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] gap-0.5 text-on-surface-variant hover:text-primary-container transition-colors" data-path="mas-y-herramientas" href="#"><span class="material-symbols-outlined text-[20px]">more_horiz</span><span class="font-label-sm text-[10px] leading-tight">Más</span></a></div></nav></body></html>

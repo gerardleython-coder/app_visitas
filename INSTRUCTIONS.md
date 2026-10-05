@@ -57,6 +57,22 @@ La jerarquía es `Distrito -> Iglesia -> Usuarios -> Hermanos y visitas`.
 - `ADMIN` debe seleccionar una iglesia perteneciente al distrito seleccionado.
 - Cada `PASTOR` y `LIDER` pertenece a una única iglesia activa y debe tener
   distrito e iglesia asignados.
+- `ADMIN` no requiere distrito ni iglesia. El primer `ADMIN` se provisiona una
+  sola vez mediante bootstrap privado; después, un `ADMIN` activo administra
+  las demás cuentas `ADMIN`.
+- Solo `ADMIN` puede listar, crear, editar, desactivar y reactivar otros
+  `ADMIN`. No puede desactivarse a sí mismo ni desactivar al último `ADMIN`
+  activo.
+- La desactivación de un `ADMIN` es lógica, queda auditada y revoca sus sesiones
+  refresh; la cuenta inactiva no puede iniciar sesión ni renovar sesión.
+- La reactivación de un `ADMIN` inactivo es un cambio reversible de estado, solo
+  lo realiza un `ADMIN` activo y no restaura refresh tokens ya revocados; el
+  usuario debe autenticarse de nuevo.
+- La eliminación irreversible de datos de un `ADMIN` es una operación
+  separada de la desactivación y solo puede aplicarse a otra cuenta. No borra
+  físicamente la fila ni su UUID, necesarios para relaciones históricas; elimina
+  los datos personales del perfil y de snapshots auditables, revoca sesiones y
+  tokens de recuperación, y nunca puede dejar el sistema sin un ADMIN activo.
 - Una iglesia puede tener varios pastores y líderes activos.
 - `ADMIN` marca como máximo un pastor principal por iglesia para notificaciones.
 - Cada `HERMANO` debe tener nombre, apellido, teléfono, dirección, distrito,
@@ -78,6 +94,7 @@ La jerarquía es `Distrito -> Iglesia -> Usuarios -> Hermanos y visitas`.
 
 | Recurso | ADMIN | PASTOR | LIDER | HERMANO |
 | --- | --- | --- | --- | --- |
+| Administradores | CRUD de otras cuentas; no auto-baja ni baja del último ADMIN activo | Sin acceso | Sin acceso | Sin acceso |
 | Distritos e iglesias | CRUD global | Sin acceso | Sin acceso | Sin acceso |
 | Pastores | CRUD y asignación global | Sin acceso | Sin acceso | Sin acceso |
 | Líderes | CRUD y asignación global | Consultar y editar datos en su iglesia | Consultar perfil | Sin acceso |
@@ -119,7 +136,11 @@ consultar el historial; `LIDER` solo consulta el estado actual de sus registros.
 
 El ranking se calcula por iglesia y período (`SEMANA` o `MES`), contando solo
 visitas `COMPLETADA`. La posición se obtiene con `DENSE_RANK()`, por lo que los
-empates comparten posición. Se usa la zona horaria `America/Bogota`.
+empates comparten posición. El conteo usa `fecha_completada`; `SEMANA` empieza
+el lunes a las 00:00 y termina el lunes siguiente, y `MES` empieza el primer día
+del mes y termina el primer día del mes siguiente. Ambos límites se interpretan
+en `America/Bogota`; el inicio es inclusivo y el fin exclusivo. ADMIN debe
+indicar una iglesia; PASTOR consulta únicamente la iglesia activa asignada.
 
 ### Notificaciones
 
@@ -134,11 +155,28 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 - Validar roles, estados, alcance, pertenencia a iglesia y unicidad de visitas
   en dominio, aplicación y persistencia.
 - Los usuarios y hermanos se desactivan lógicamente para conservar historial.
+- Las cuentas `ADMIN` conservan una desactivación lógica reversible en sus datos
+  históricos y pueden reactivarse por otro `ADMIN` activo sin restaurar refresh
+  tokens revocados; la eliminación irreversible anonimiza PII, conserva la
+  identidad referencial y los metadatos de auditoría, y revoca
+  credenciales/sesiones. Los respaldos cifrados con datos anteriores deben
+  expirar según una política de retención aprobada antes de confirmar la
+  eliminación como completa.
 - El access token dura 15 minutos.
 - Los refresh tokens se rotan, se almacenan de forma revocable y se invalidan
   al cerrar sesión, expirar o detectar reutilización.
+- Los tokens de recuperación son aleatorios, de un solo uso, expiran en 30
+  minutos y se almacenan únicamente como SHA-256. La solicitud de recuperación
+  responde igual para cuentas existentes y desconocidas; el reset exitoso
+  invalida todas las sesiones refresh de la cuenta.
 - Debe existir recuperación y cambio de contraseña para usuarios con acceso.
+- `DELETE /admin/distritos/{id}` elimina el distrito únicamente cuando no tiene
+  iglesias asociadas. `DELETE /admin/iglesias/{id}` es desactivación lógica y
+  solo se permite cuando no quedan usuarios activos; se conservan las relaciones
+  históricas.
 - Los secretos se cargan desde variables de entorno y nunca se versionan.
+- CORS debe limitarse a los orígenes de despliegue configurados; el modo local
+  permite únicamente `http://localhost:5000` y `http://127.0.0.1:5000`.
 - No incluir secretos reales, tokens ni credenciales en documentación,
   fixtures o mensajes de error.
 
@@ -147,20 +185,54 @@ la operación confirmada; debe registrarse para reintento y observabilidad.
 La API usa el prefijo `/api/v1` y debe incluir como mínimo:
 
 - `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`.
-- `POST /auth/password/forgot` y `POST /auth/password/reset`.
-- CRUD de `/admin/distritos` y `/admin/iglesias`, solo `ADMIN`.
+- `POST /auth/bootstrap-admin` crea el primer `ADMIN` únicamente si no existe
+  ninguna cuenta con ese rol; requiere el secreto temporal `BOOTSTRAP_TOKEN` en
+  `X-Bootstrap-Token`, configurado fuera del repositorio. Si el secreto no está
+  configurado o ya existe un `ADMIN` (activo o inactivo), no permite crear otra
+  cuenta. Retira el secreto del entorno después del bootstrap.
+- `GET /auth/me` devuelve la identidad y asignación del usuario autenticado sin
+  exponer contraseña, hash ni tokens.
+- `POST /auth/password/forgot` devuelve `202` sin revelar si el email existe;
+  `POST /auth/password/reset` consume un token único y devuelve `204` o un error
+  genérico `400` si el token no es válido.
+- `POST /auth/password/change` requiere sesión operativa, `current_password` y
+  `new_password`; verifica la contraseña actual, guarda Argon2 y revoca todos
+  los refresh tokens del usuario.
+- CRUD de `/admin/distritos` y `/admin/iglesias`, solo `ADMIN`; el distrito solo
+  se elimina sin iglesias y la iglesia se desactiva lógicamente sin usuarios
+  activos.
 - CRUD y asignación de `/users/pastores`, solo `ADMIN`.
 - Creación y asignación de `/users/lideres`, solo `ADMIN`; `PASTOR` puede
   consultar y editar sus datos sin cambiar el rol.
+- CRUD de `/users/administradores`, solo `ADMIN`: crear sin asignación
+  territorial, listar, editar nombre/apellido/correo, desactivar lógicamente y
+  reactivar cuentas inactivas. La baja impide la auto-desactivación y la
+  desactivación del último `ADMIN` activo; la reactivación es reversible,
+  registra auditoría y no restaura sesiones refresh revocadas.
+- `POST /users/administradores/{id}/reactivar`, solo `ADMIN`: activa una cuenta
+  `ADMIN` inactiva y la devuelve a la vista de activos sin restaurar refresh
+  tokens previamente revocados.
+- `POST /users/administradores/{id}/eliminacion-definitiva`, solo `ADMIN`: borra
+  irreversiblemente datos personales de otra cuenta ADMIN mediante
+  anonimización, sin borrar físicamente la fila ni eventos de auditoría.
+  Conserva IDs/fechas/acciones/referencias, elimina PII de perfil y snapshots,
+  invalida sesiones y tokens de recuperación, bloquea auto-eliminación y evita
+  dejar cero ADMIN activos.
 - CRUD de `/hermanos` según alcance; reasignación de líder por `ADMIN` o
   `PASTOR`.
 - CRUD de `/visitas` según alcance y reglas de estado.
 - `GET /visitas/{id}/history` para `ADMIN` y `PASTOR`.
 - `GET /audit` para `ADMIN` global y `PASTOR` dentro de su iglesia.
-- `GET /reports/ranking` por iglesia y período.
+- `GET /reports/ranking?period=SEMANA|MES&church_id=...&reference_date=YYYY-MM-DD`
+  para ADMIN y PASTOR; ADMIN indica iglesia y PASTOR queda limitado a la suya.
 
 Todos los endpoints protegidos deben comprobar autenticación, rol, iglesia,
 propiedad o asignación, y devolver errores HTTP consistentes.
+
+La administración territorial crea distritos con `name` y edita ese nombre.
+Las iglesias se crean con `district_id`, `name` y `address`; su edición no mueve
+la iglesia de distrito. El distrito se elimina solo si no tiene iglesias; la
+iglesia se desactiva lógicamente solo cuando no tiene usuarios activos.
 
 ## 7. Historias de usuario y criterios de aceptación
 
@@ -186,10 +258,14 @@ observables, errores de autorización, límites de alcance y reglas de negocio;
 no deben describir detalles internos de SQLAlchemy, Flutter o la estructura de
 clases.
 
-Las nueve HU funcionales iniciales y sus escenarios completos están en la
-sección "Historias de usuario y aceptación" del `README.md`. Deben cubrir
-autenticación, asignación administrativa, hermanos, visitas, auditoría,
-notificaciones, ranking, recuperación de cuenta y desactivación lógica.
+Las HU-01 a HU-12 y sus escenarios completos están en la sección "Historias de
+usuario y aceptación" del `README.md`. HU-11 define la administración de cuentas
+`ADMIN` y el bootstrap inicial privado. HU-12 especifica la anonimización
+irreversible de datos personales de administradores preservando referencias e
+historial de auditoría; requiere aprobar la política de retención de respaldos.
+Las historias cubren autenticación, asignaciones administrativas, hermanos,
+visitas, auditoría, notificaciones, ranking, recuperación, desactivación lógica,
+administración territorial y ciclo de vida de administradores.
 
 ### Relación con SOLID
 
@@ -212,7 +288,7 @@ aplicación y presentación.
 El ciclo obligatorio es **RED -> GREEN -> REFACTOR**.
 
 - Backend: pruebas unitarias de dominio y casos de uso, integración HTTP y
-  persistencia, con `pytest-asyncio` y cobertura mínima del 85 %.
+  persistencia, con `pytest-asyncio` y cobertura mínima del 91 %.
 - Frontend: pruebas de BLoC con `bloc_test`, mocks con `mocktail` y widget
   tests de estados de carga, éxito y error.
 - Cubrir autorización, límites de iglesia, asignaciones, transiciones de
